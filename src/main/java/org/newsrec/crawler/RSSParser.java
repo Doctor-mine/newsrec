@@ -2,6 +2,7 @@ package org.newsrec.crawler;
 
 import org.w3c.dom.*;
 import javax.xml.parsers.*;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,9 +27,14 @@ public class RSSParser {
                             .newInstance()
                             .newDocumentBuilder();
 
+            HttpURLConnection conn =
+                    (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(10000);
+
             Document document =
                     builder.parse(
-                            url.openStream()
+                            conn.getInputStream()
                     );
 
             NodeList items =

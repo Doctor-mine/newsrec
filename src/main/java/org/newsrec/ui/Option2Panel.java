@@ -51,45 +51,66 @@ public class Option2Panel extends JPanel {
                         fileChooser.getSelectedFile();
 
                 uploadBtn.setEnabled(false);
-                results.setText("Processing...\n");
+                results.setText("Starting...\n");
 
-                SwingWorker<List<RecommendationResult>, Void> worker =
+                SwingWorker<List<RecommendationResult>, String> worker =
                         new SwingWorker<>() {
                             @Override
                             protected List<RecommendationResult> doInBackground() {
+                                publish("Reading file...\n");
                                 OnlineRecommendationService service =
                                         new OnlineRecommendationService();
-                                return service.recommend(file);
+                                publish("Extracting keywords...\n");
+                                List<RecommendationResult> recs = service.recommend(file);
+                                publish("Done.\n");
+                                return recs;
+                            }
+
+                            @Override
+                            protected void process(List<String> chunks) {
+                                StringBuilder sb = new StringBuilder();
+                                for (String s : chunks) {
+                                    sb.append(s);
+                                }
+                                results.append(sb.toString());
                             }
 
                             @Override
                             protected void done() {
                                 try {
                                     List<RecommendationResult> recommendations = get();
-                                    StringBuilder builder =
-                                            new StringBuilder();
-                                    for (RecommendationResult r
-                                            : recommendations) {
-                                        builder.append(
-                                                r.getFileName()
+                                    if (recommendations.isEmpty()) {
+                                        results.append("No recommendations found.\n");
+                                    } else {
+                                        StringBuilder builder =
+                                                new StringBuilder();
+                                        builder.append("Recommendations:\n\n");
+                                        int rank = 1;
+                                        for (RecommendationResult r
+                                                : recommendations) {
+                                            builder.append(rank++)
+                                                    .append(". ");
+                                            builder.append(
+                                                    r.getFileName()
+                                            );
+                                            builder.append(
+                                                    " -> "
+                                            );
+                                            builder.append(
+                                                    String.format(
+                                                            "%.4f",
+                                                            r.getSimilarity()
+                                                    )
+                                            );
+                                            builder.append("\n");
+                                        }
+                                        results.append(
+                                                builder.toString()
                                         );
-                                        builder.append(
-                                                " -> "
-                                        );
-                                        builder.append(
-                                                String.format(
-                                                        "%.4f",
-                                                        r.getSimilarity()
-                                                )
-                                        );
-                                        builder.append("\n");
                                     }
-                                    results.setText(
-                                            builder.toString()
-                                    );
                                 } catch (Exception ex) {
-                                    results.setText(
-                                            "Error: " + ex.getMessage()
+                                    results.append(
+                                            "Error: " + ex.getMessage() + "\n"
                                     );
                                     JOptionPane.showMessageDialog(
                                             Option2Panel.this,

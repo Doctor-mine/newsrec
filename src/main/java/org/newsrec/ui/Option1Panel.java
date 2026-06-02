@@ -4,6 +4,7 @@ import org.newsrec.model.RecommendationResult;
 import org.newsrec.recommendation.RecommendationService;
 
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.io.File;
 import java.util.ArrayList;
@@ -16,7 +17,14 @@ public class Option1Panel extends JPanel {
     private final List<File> compareFiles =
             new ArrayList<>();
 
-    private JTextArea resultArea;
+    private final DefaultListModel<String> compareListModel =
+            new DefaultListModel<>();
+
+    private JLabel baseFileLabel;
+
+    private JList<String> compareList;
+
+    private JPanel resultsPanel;
 
     private JButton baseBtn;
     private JButton compareBtn;
@@ -26,8 +34,7 @@ public class Option1Panel extends JPanel {
 
         setLayout(new BorderLayout());
 
-        JPanel top =
-                new JPanel();
+        JPanel top = new JPanel();
 
         baseBtn =
                 new JButton(
@@ -36,7 +43,7 @@ public class Option1Panel extends JPanel {
 
         compareBtn =
                 new JButton(
-                        "Upload 10 Files"
+                        "Add Compare Files"
                 );
 
         analyzeBtn =
@@ -53,12 +60,68 @@ public class Option1Panel extends JPanel {
                 BorderLayout.NORTH
         );
 
-        resultArea =
-                new JTextArea();
+        JPanel centerPanel =
+                new JPanel(new BorderLayout());
+
+        baseFileLabel =
+                new JLabel("(none)");
+
+        JPanel baseInfo =
+                new JPanel(new FlowLayout(FlowLayout.LEFT));
+        baseInfo.setBorder(
+                new TitledBorder("Base File")
+        );
+        baseInfo.add(baseFileLabel);
+
+        centerPanel.add(
+                baseInfo,
+                BorderLayout.NORTH
+        );
+
+        compareList =
+                new JList<>(compareListModel);
+
+        JPanel comparePanel =
+                new JPanel(new BorderLayout());
+        comparePanel.setBorder(
+                new TitledBorder("Compare Files")
+        );
+        comparePanel.add(
+                new JScrollPane(compareList),
+                BorderLayout.CENTER
+        );
+
+        centerPanel.add(
+                comparePanel,
+                BorderLayout.CENTER
+        );
 
         add(
-                new JScrollPane(resultArea),
+                centerPanel,
                 BorderLayout.CENTER
+        );
+
+        resultsPanel =
+                new JPanel();
+        resultsPanel.setLayout(
+                new BoxLayout(
+                        resultsPanel,
+                        BoxLayout.Y_AXIS
+                )
+        );
+
+        JScrollPane bottomScroll =
+                new JScrollPane(resultsPanel);
+        bottomScroll.setBorder(
+                new TitledBorder("Results")
+        );
+        bottomScroll.setPreferredSize(
+                new Dimension(400, 200)
+        );
+
+        add(
+                bottomScroll,
+                BorderLayout.SOUTH
         );
 
         baseBtn.addActionListener(
@@ -79,7 +142,7 @@ public class Option1Panel extends JPanel {
         JFileChooser chooser =
                 new JFileChooser();
 
-        if(
+        if (
                 chooser.showOpenDialog(this)
                         ==
                         JFileChooser.APPROVE_OPTION
@@ -87,6 +150,10 @@ public class Option1Panel extends JPanel {
 
             baseFile =
                     chooser.getSelectedFile();
+
+            baseFileLabel.setText(
+                    baseFile.getName()
+            );
         }
     }
 
@@ -99,18 +166,19 @@ public class Option1Panel extends JPanel {
                 true
         );
 
-        if(
+        if (
                 chooser.showOpenDialog(this)
                         ==
                         JFileChooser.APPROVE_OPTION
         ) {
 
-            compareFiles.clear();
-
-            for(File f :
+            for (File f :
                     chooser.getSelectedFiles()) {
 
                 compareFiles.add(f);
+                compareListModel.addElement(
+                        f.getName()
+                );
             }
         }
     }
@@ -134,7 +202,12 @@ public class Option1Panel extends JPanel {
         }
 
         setButtonsEnabled(false);
-        resultArea.setText("Analyzing...\n");
+        resultsPanel.removeAll();
+        resultsPanel.add(
+                new JLabel("Analyzing...")
+        );
+        resultsPanel.revalidate();
+        resultsPanel.repaint();
 
         SwingWorker<List<RecommendationResult>, Void> worker =
                 new SwingWorker<>() {
@@ -152,29 +225,111 @@ public class Option1Panel extends JPanel {
                     protected void done() {
                         try {
                             List<RecommendationResult> results = get();
-                            resultArea.setText("");
-                            for (RecommendationResult r : results) {
-                                resultArea.append(
-                                        r.getFileName()
-                                                + " -> "
-                                                + String.format(
-                                                "%.4f",
-                                                r.getSimilarity()
-                                        )
-                                                + "\n"
-                                );
-                            }
+                            displayResults(results);
                         } catch (Exception ex) {
-                            resultArea.setText(
-                                    "Error: " + ex.getMessage()
+                            resultsPanel.removeAll();
+                            resultsPanel.add(
+                                    new JLabel(
+                                            "Error: " + ex.getMessage()
+                                    )
+                            );
+                            JOptionPane.showMessageDialog(
+                                    Option1Panel.this,
+                                    "Error: " + ex.getMessage(),
+                                    "Error",
+                                    JOptionPane.ERROR_MESSAGE
                             );
                         } finally {
                             setButtonsEnabled(true);
+                            resultsPanel.revalidate();
+                            resultsPanel.repaint();
                         }
                     }
                 };
 
         worker.execute();
+    }
+
+    private void displayResults(
+            List<RecommendationResult> results
+    ) {
+
+        resultsPanel.removeAll();
+
+        for (RecommendationResult r :
+                results) {
+
+            JPanel row = new JPanel(
+                    new FlowLayout(FlowLayout.LEFT)
+            );
+
+            row.add(
+                    new JLabel(r.getFileName())
+            );
+
+            row.add(
+                    Box.createHorizontalStrut(20)
+            );
+
+            row.add(
+                    new JLabel(
+                            String.format(
+                                    "Score: %.4f",
+                                    r.getSimilarity()
+                            )
+                    )
+            );
+
+            row.add(
+                    Box.createHorizontalStrut(20)
+            );
+
+            JButton openBtn =
+                    new JButton(
+                            "Open in Explorer"
+                    );
+
+            String filePath =
+                    r.getFilePath();
+
+            openBtn.addActionListener(
+                    e -> openInExplorer(filePath)
+            );
+
+            row.add(openBtn);
+
+            resultsPanel.add(row);
+        }
+
+        if (results.isEmpty()) {
+            resultsPanel.add(
+                    new JLabel("No results found.")
+            );
+        }
+
+        resultsPanel.revalidate();
+        resultsPanel.repaint();
+    }
+
+    private void openInExplorer(String path) {
+
+        if (path == null || path.isEmpty()) {
+            return;
+        }
+
+        try {
+
+            Runtime.getRuntime()
+                    .exec(
+                            "explorer.exe /select,\""
+                                    + path
+                                    + "\""
+                    );
+
+        } catch (Exception ex) {
+
+            ex.printStackTrace();
+        }
     }
 
     private void setButtonsEnabled(boolean enabled) {

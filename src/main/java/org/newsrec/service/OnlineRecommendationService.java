@@ -33,6 +33,13 @@ public class OnlineRecommendationService {
                 new CrawlerManager()
                         .collectArticles(keywords);
 
+        if (articles.isEmpty()) {
+            throw new RuntimeException(
+                    "Could not fetch any online articles to compare against. " +
+                    "Check your internet connection."
+            );
+        }
+
         List<String> corpus =
                 new ArrayList<>();
 

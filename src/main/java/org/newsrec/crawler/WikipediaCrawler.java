@@ -29,6 +29,7 @@ public class WikipediaCrawler {
 
             Document doc =
                     Jsoup.connect(url)
+                            .timeout(10000)
                             .get();
 
             String title =

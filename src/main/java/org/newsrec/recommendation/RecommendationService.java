@@ -74,6 +74,7 @@ public class RecommendationService {
                 results.add(
                         new RecommendationResult(
                                 file.getName(),
+                                file.getAbsolutePath(),
                                 similarity
                         )
                 );

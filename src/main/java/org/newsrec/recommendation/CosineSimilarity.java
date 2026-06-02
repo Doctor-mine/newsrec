@@ -22,7 +22,7 @@ public class CosineSimilarity {
 
             double x = a.get(term);
 
-            double y = b.get(term);
+            double y = b.getOrDefault(term, 0.0);
 
             dot += x * y;
 
