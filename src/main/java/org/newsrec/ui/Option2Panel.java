@@ -2,15 +2,17 @@ package org.newsrec.ui;
 
 import org.newsrec.model.RecommendationResult;
 import org.newsrec.service.OnlineRecommendationService;
+import org.newsrec.util.BrowserUtil;
 
 import javax.swing.*;
+import javax.swing.event.HyperlinkEvent;
 import java.awt.*;
 import java.io.File;
 import java.util.List;
 
 public class Option2Panel extends JPanel {
 
-    private JTextArea results;
+    private JEditorPane results;
 
     private JButton uploadBtn;
 
@@ -30,7 +32,19 @@ public class Option2Panel extends JPanel {
         );
 
         results =
-                new JTextArea();
+                new JEditorPane();
+        results.setContentType(
+                "text/html"
+        );
+        results.setEditable(false);
+        results.addHyperlinkListener(e -> {
+            if (e.getEventType()
+                    == HyperlinkEvent.EventType.ACTIVATED) {
+                BrowserUtil.open(
+                        e.getURL().toString()
+                );
+            }
+        });
 
         add(
                 new JScrollPane(results),
@@ -51,18 +65,21 @@ public class Option2Panel extends JPanel {
                         fileChooser.getSelectedFile();
 
                 uploadBtn.setEnabled(false);
-                results.setText("Starting...\n");
+                results.setText(
+                        "<html><body><p>Starting...</p>"
+                );
 
                 SwingWorker<List<RecommendationResult>, String> worker =
                         new SwingWorker<>() {
                             @Override
                             protected List<RecommendationResult> doInBackground() {
-                                publish("Reading file...\n");
                                 OnlineRecommendationService service =
                                         new OnlineRecommendationService();
-                                publish("Extracting keywords...\n");
-                                List<RecommendationResult> recs = service.recommend(file);
-                                publish("Done.\n");
+                                List<RecommendationResult> recs =
+                                        service.recommend(
+                                                file,
+                                                msg -> publish(msg)
+                                        );
                                 return recs;
                             }
 
@@ -70,47 +87,78 @@ public class Option2Panel extends JPanel {
                             protected void process(List<String> chunks) {
                                 StringBuilder sb = new StringBuilder();
                                 for (String s : chunks) {
-                                    sb.append(s);
+                                    sb.append(
+                                            s.replace("\n", "<br>")
+                                    );
                                 }
-                                results.append(sb.toString());
+                                String current = results.getText();
+                                int bodyEnd =
+                                        current.lastIndexOf("</body>");
+                                if (bodyEnd >= 0) {
+                                    results.setText(
+                                            current.substring(0, bodyEnd)
+                                                    + sb.toString()
+                                                    + "</body></html>"
+                                    );
+                                } else {
+                                    results.setText(
+                                            "<html><body>"
+                                                    + sb.toString()
+                                                    + "</body></html>"
+                                    );
+                                }
                             }
 
                             @Override
                             protected void done() {
                                 try {
                                     List<RecommendationResult> recommendations = get();
+                                    StringBuilder html =
+                                            new StringBuilder();
+                                    html.append(
+                                            "<html><body>"
+                                    );
                                     if (recommendations.isEmpty()) {
-                                        results.append("No recommendations found.\n");
+                                        html.append(
+                                                "<p>No recommendations found.</p>"
+                                        );
                                     } else {
-                                        StringBuilder builder =
-                                                new StringBuilder();
-                                        builder.append("Recommendations:\n\n");
-                                        int rank = 1;
+                                        html.append(
+                                                "<h3>Recommendations</h3>"
+                                        );
                                         for (RecommendationResult r
                                                 : recommendations) {
-                                            builder.append(rank++)
-                                                    .append(". ");
-                                            builder.append(
-                                                    r.getFileName()
+                                            html.append(
+                                                    "<p><b>"
+                                                            + r.getFileName()
+                                                            + "</b><br>"
+                                                            + "<i>Source: "
+                                                            + r.getSource()
+                                                            + "</i><br>"
+                                                            + "Score: "
+                                                            + String.format(
+                                                                    "%.4f",
+                                                                    r.getSimilarity()
+                                                            )
+                                                            + "<br>"
+                                                            + "<a href='"
+                                                            + r.getLink()
+                                                            + "'>"
+                                                            + r.getLink()
+                                                            + "</a></p>"
+                                                            + "<hr>"
                                             );
-                                            builder.append(
-                                                    " -> "
-                                            );
-                                            builder.append(
-                                                    String.format(
-                                                            "%.4f",
-                                                            r.getSimilarity()
-                                                    )
-                                            );
-                                            builder.append("\n");
                                         }
-                                        results.append(
-                                                builder.toString()
-                                        );
                                     }
+                                    html.append("</body></html>");
+                                    results.setText(
+                                            html.toString()
+                                    );
                                 } catch (Exception ex) {
-                                    results.append(
-                                            "Error: " + ex.getMessage() + "\n"
+                                    results.setText(
+                                            "<html><body><p>Error: "
+                                                    + ex.getMessage()
+                                                    + "</p></body></html>"
                                     );
                                     JOptionPane.showMessageDialog(
                                             Option2Panel.this,

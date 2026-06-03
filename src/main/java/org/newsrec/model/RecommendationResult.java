@@ -8,11 +8,15 @@ public class RecommendationResult {
 
     private double similarity;
 
+    private String source;
+
+    private String link;
+
     public RecommendationResult(
             String fileName,
             double similarity
     ) {
-        this(fileName, "", similarity);
+        this(fileName, "", similarity, "", "");
     }
 
     public RecommendationResult(
@@ -20,10 +24,31 @@ public class RecommendationResult {
             String filePath,
             double similarity
     ) {
+        this(fileName, filePath, similarity, "", "");
+    }
+
+    public RecommendationResult(
+            String fileName,
+            String source,
+            String link,
+            double similarity
+    ) {
+        this(fileName, "", similarity, source, link);
+    }
+
+    public RecommendationResult(
+            String fileName,
+            String filePath,
+            double similarity,
+            String source,
+            String link
+    ) {
 
         this.fileName = fileName;
         this.filePath = filePath;
         this.similarity = similarity;
+        this.source = source;
+        this.link = link;
     }
 
     public String getFileName() {
@@ -36,5 +61,13 @@ public class RecommendationResult {
 
     public double getSimilarity() {
         return similarity;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public String getLink() {
+        return link;
     }
 }

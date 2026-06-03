@@ -7,17 +7,20 @@ import org.newsrec.recommendation.*;
 
 import java.io.File;
 import java.util.*;
+import java.util.function.Consumer;
 
 public class OnlineRecommendationService {
 
     public List<RecommendationResult>
-    recommend(File uploadedFile) {
+    recommend(File uploadedFile, Consumer<String> progress) {
 
+        progress.accept("Reading file...\n");
         String content =
                 ReaderFactory
                         .getReader(uploadedFile)
                         .read(uploadedFile);
 
+        progress.accept("Extracting keywords...\n");
         List<String> keywords =
                 new KeywordExtractor()
                         .extractKeywords(
@@ -29,9 +32,10 @@ public class OnlineRecommendationService {
             keywords.add("");
         }
 
+        progress.accept("Fetching online articles...\n");
         List<RSSArticle> articles =
                 new CrawlerManager()
-                        .collectArticles(keywords);
+                        .collectArticles(keywords, progress);
 
         if (articles.isEmpty()) {
             throw new RuntimeException(
@@ -40,50 +44,66 @@ public class OnlineRecommendationService {
             );
         }
 
+        progress.accept("Computing similarities...\n");
+
         List<String> corpus =
                 new ArrayList<>();
 
         corpus.add(content);
 
-        for(RSSArticle article :
-                articles){
-
+        for (RSSArticle article : articles) {
             corpus.add(
                     article.getTitle()
-                            +
-                            " "
-                            +
-                            article.getDescription()
+                            + " "
+                            + article.getDescription()
             );
         }
 
+        progress.accept("  - Building vocabulary...\n");
         TFIDFVectorizer vectorizer =
                 new TFIDFVectorizer();
+
+        List<List<String>> tokenizedCorpus =
+                new ArrayList<>();
+
+        for (String doc : corpus) {
+            tokenizedCorpus.add(
+                    vectorizer
+                            .preprocess(doc)
+            );
+        }
+
+        Map<String, Double> idfMap =
+                vectorizer.precomputeIDF(
+                        tokenizedCorpus
+                );
 
         CosineSimilarity similarity =
                 new CosineSimilarity();
 
+        progress.accept("  - Vectorizing base file...\n");
         Map<String,Double> baseVector =
                 vectorizer.buildVector(
                         content,
-                        corpus
+                        idfMap
                 );
 
         List<RecommendationResult> results =
                 new ArrayList<>();
 
-        for(RSSArticle article :
-                articles){
+        int total = articles.size();
+        int i = 0;
+
+        for (RSSArticle article : articles) {
 
             String articleText =
                     article.getTitle()
-                            +
-                            article.getDescription();
+                            + article.getDescription();
 
             Map<String,Double> vector =
                     vectorizer.buildVector(
                             articleText,
-                            corpus
+                            idfMap
                     );
 
             double score =
@@ -95,9 +115,19 @@ public class OnlineRecommendationService {
             results.add(
                     new RecommendationResult(
                             article.getTitle(),
+                            article.getSource(),
+                            article.getLink(),
                             score
                     )
             );
+
+            i++;
+            if (i % 100 == 0) {
+                progress.accept(
+                        "  - Processed " + i
+                                + "/" + total + "\n"
+                    );
+            }
         }
 
         results.sort(
@@ -107,6 +137,7 @@ public class OnlineRecommendationService {
                 ).reversed()
         );
 
+        progress.accept("Done.\n");
         return results;
     }
 }
