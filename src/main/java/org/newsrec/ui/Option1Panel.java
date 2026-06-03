@@ -27,7 +27,9 @@ public class Option1Panel extends JPanel {
     private JPanel resultsPanel;
 
     private JButton baseBtn;
+    private JButton removeBaseBtn;
     private JButton compareBtn;
+    private JButton removeCompareBtn;
     private JButton analyzeBtn;
 
     public Option1Panel() {
@@ -41,10 +43,22 @@ public class Option1Panel extends JPanel {
                         "Upload Base File"
                 );
 
+        removeBaseBtn =
+                new JButton(
+                        "Remove Base File"
+                );
+        removeBaseBtn.setEnabled(false);
+
         compareBtn =
                 new JButton(
                         "Add Compare Files"
                 );
+
+        removeCompareBtn =
+                new JButton(
+                        "Remove Selected"
+                );
+        removeCompareBtn.setEnabled(false);
 
         analyzeBtn =
                 new JButton(
@@ -52,7 +66,9 @@ public class Option1Panel extends JPanel {
                 );
 
         top.add(baseBtn);
+        top.add(removeBaseBtn);
         top.add(compareBtn);
+        top.add(removeCompareBtn);
         top.add(analyzeBtn);
 
         add(
@@ -128,8 +144,16 @@ public class Option1Panel extends JPanel {
                 e -> chooseBase()
         );
 
+        removeBaseBtn.addActionListener(
+                e -> removeBase()
+        );
+
         compareBtn.addActionListener(
                 e -> chooseFiles()
+        );
+
+        removeCompareBtn.addActionListener(
+                e -> removeSelectedCompare()
         );
 
         analyzeBtn.addActionListener(
@@ -154,7 +178,14 @@ public class Option1Panel extends JPanel {
             baseFileLabel.setText(
                     baseFile.getName()
             );
+            removeBaseBtn.setEnabled(true);
         }
+    }
+
+    private void removeBase() {
+        baseFile = null;
+        baseFileLabel.setText("(none)");
+        removeBaseBtn.setEnabled(false);
     }
 
     private void chooseFiles() {
@@ -180,7 +211,31 @@ public class Option1Panel extends JPanel {
                         f.getName()
                 );
             }
+            removeCompareBtn.setEnabled(
+                    !compareFiles.isEmpty()
+            );
         }
+    }
+
+    private void removeSelectedCompare() {
+        int[] indices =
+                compareList.getSelectedIndices();
+
+        if (indices.length == 0) {
+            return;
+        }
+
+        for (int i = indices.length - 1;
+                i >= 0; i--) {
+            compareFiles.remove(indices[i]);
+            compareListModel.remove(
+                    indices[i]
+            );
+        }
+
+        removeCompareBtn.setEnabled(
+                !compareFiles.isEmpty()
+        );
     }
 
     private void analyze() {
@@ -334,7 +389,13 @@ public class Option1Panel extends JPanel {
 
     private void setButtonsEnabled(boolean enabled) {
         baseBtn.setEnabled(enabled);
+        removeBaseBtn.setEnabled(
+                enabled && baseFile != null
+        );
         compareBtn.setEnabled(enabled);
+        removeCompareBtn.setEnabled(
+                enabled && !compareFiles.isEmpty()
+        );
         analyzeBtn.setEnabled(enabled);
     }
 }
