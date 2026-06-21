@@ -1,5 +1,7 @@
 package org.newsrec.crawler;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -8,6 +10,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class CrawlerManager {
+
+    private static final Logger logger = LogManager.getLogger(CrawlerManager.class);
 
     public List<RSSArticle> collectArticles(
             List<String> keywords

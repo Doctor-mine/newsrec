@@ -21,7 +21,7 @@ public class DOCXReader implements DocumentReader {
             return document.getParagraphs()
                     .stream()
                     .map(p -> p.getText())
-                    .reduce("", String::concat);
+                    .reduce("", (a, b) -> a + "\n" + b);
 
         } catch (Exception e) {
 

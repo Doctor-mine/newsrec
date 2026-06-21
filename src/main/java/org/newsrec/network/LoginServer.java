@@ -1,6 +1,8 @@
 package org.newsrec.network;
 
 import org.newsrec.service.AuthService;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -8,6 +10,7 @@ import java.net.Socket;
 
 public class LoginServer {
 
+    private static final Logger logger = LogManager.getLogger(LoginServer.class);
     private static final int PORT = 9999;
 
     public void start() {
@@ -17,8 +20,9 @@ public class LoginServer {
                         new ServerSocket(PORT)
         ) {
 
-            System.out.println(
-                    "Login server running..."
+            logger.info(
+                    "Login server running on port {}",
+                    PORT
             );
 
             while (true) {
@@ -31,9 +35,13 @@ public class LoginServer {
                 ).start();
             }
 
+        } catch (java.net.BindException e) {
+
+            logger.error("Port {} is already in use – another instance may be running.", PORT);
+
         } catch (Exception e) {
 
-            e.printStackTrace();
+            logger.error("Login server error", e);
         }
     }
 
@@ -57,23 +65,27 @@ public class LoginServer {
                         )
         ) {
 
+            String action =
+                    in.readLine();
+
             String username =
                     in.readLine();
 
             String password =
                     in.readLine();
 
-            boolean success =
-                    AuthService.authenticate(
-                            username,
-                            password
-                    );
+            int userId = 0;
+            if ("REG".equals(action)) {
+                userId = AuthService.register(username, password);
+            } else {
+                userId = AuthService.authenticate(username, password);
+            }
 
-            out.println(success);
+            out.println(userId);
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            logger.error("Error handling login client", e);
         }
     }
 }

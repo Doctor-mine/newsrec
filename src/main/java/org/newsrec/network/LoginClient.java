@@ -1,11 +1,17 @@
 package org.newsrec.network;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.*;
 import java.net.Socket;
 
 public class LoginClient {
 
-    public boolean login(
+    private static final Logger logger = LogManager.getLogger(LoginClient.class);
+
+    private int sendAction(
+            String action,
             String username,
             String password
     ) {
@@ -32,18 +38,33 @@ public class LoginClient {
                         )
         ) {
 
+            out.println(action);
             out.println(username);
             out.println(password);
 
-            return Boolean.parseBoolean(
-                    in.readLine()
-            );
+            String response = in.readLine();
+            if (response == null) return 0;
+            return Integer.parseInt(response);
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            logger.error("{} failed for user: {}", action, username, e);
         }
 
-        return false;
+        return 0;
+    }
+
+    public int login(
+            String username,
+            String password
+    ) {
+        return sendAction("LOGIN", username, password);
+    }
+
+    public int register(
+            String username,
+            String password
+    ) {
+        return sendAction("REG", username, password);
     }
 }

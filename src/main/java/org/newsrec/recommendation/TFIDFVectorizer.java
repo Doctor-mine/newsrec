@@ -102,13 +102,11 @@ public class TFIDFVectorizer {
             String term,
             List<String> terms
     ){
-
-        long count =
-                terms.stream()
-                        .filter(t -> t.equals(term))
-                        .count();
-
-        return (double) count /
-                terms.size();
+        Map<String, Long> freq = new HashMap<>();
+        for (String t : terms) {
+            freq.merge(t, 1L, Long::sum);
+        }
+        long count = freq.getOrDefault(term, 0L);
+        return (double) count / terms.size();
     }
 }

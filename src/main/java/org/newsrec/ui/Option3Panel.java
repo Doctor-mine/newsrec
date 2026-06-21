@@ -3,6 +3,9 @@ package org.newsrec.ui;
 import org.newsrec.crawler.RSSArticle;
 import org.newsrec.service.TopicSearchService;
 import org.newsrec.util.BrowserUtil;
+import org.newsrec.util.HtmlUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
 import javax.swing.event.HyperlinkEvent;
@@ -11,11 +14,15 @@ import java.util.List;
 
 public class Option3Panel extends JPanel {
 
+    private static final Logger logger = LogManager.getLogger(Option3Panel.class);
+
     private JTextField topicField;
 
     private JEditorPane resultPane;
 
     private JButton searchBtn;
+
+    private JProgressBar progressBar;
 
     public Option3Panel() {
 
@@ -49,6 +56,15 @@ public class Option3Panel extends JPanel {
                 BorderLayout.NORTH
         );
 
+        progressBar =
+                new JProgressBar();
+        progressBar.setIndeterminate(true);
+        progressBar.setVisible(false);
+        add(
+                progressBar,
+                BorderLayout.SOUTH
+        );
+
         resultPane =
                 new JEditorPane();
         resultPane.setContentType(
@@ -74,6 +90,10 @@ public class Option3Panel extends JPanel {
         searchBtn.addActionListener(
                 e -> search()
         );
+
+        topicField.addActionListener(
+                e -> search()
+        );
     }
 
     private void search() {
@@ -90,10 +110,11 @@ public class Option3Panel extends JPanel {
         }
 
         searchBtn.setEnabled(false);
+        progressBar.setVisible(true);
         resultPane.setText(
                 "<html><body>"
                         + "<p><b>Searching for: "
-                        + topic
+                        + HtmlUtils.escape(topic)
                         + "</b></p>"
         );
 
@@ -124,15 +145,15 @@ public class Option3Panel extends JPanel {
                                         : articles) {
                                     html.append(
                                             "<p><b>"
-                                                    + article.getTitle()
+                                                    + HtmlUtils.escape(article.getTitle())
                                                     + "</b><br>"
                                                     + "<i>Source: "
-                                                    + article.getSource()
+                                                    + HtmlUtils.escape(article.getSource())
                                                     + "</i><br>"
                                                     + "<a href='"
-                                                    + article.getLink()
+                                                    + HtmlUtils.escape(article.getLink())
                                                     + "'>"
-                                                    + article.getLink()
+                                                    + HtmlUtils.escape(article.getLink())
                                                     + "</a></p>"
                                                     + "<hr>"
                                     );
@@ -150,6 +171,7 @@ public class Option3Panel extends JPanel {
                             );
                         } finally {
                             searchBtn.setEnabled(true);
+                            progressBar.setVisible(false);
                         }
                     }
                 };

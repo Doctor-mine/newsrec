@@ -4,7 +4,11 @@ import javax.swing.*;
 
 public class DashboardFrame extends JFrame {
 
-    public DashboardFrame() {
+    private final int userId;
+
+    public DashboardFrame(int userId) {
+
+        this.userId = userId;
 
         setTitle("News Recommendation");
 
@@ -18,17 +22,17 @@ public class DashboardFrame extends JFrame {
                 new JTabbedPane();
 
         tabs.add(
-                "Option 1",
-                new Option1Panel()
+                "Local Comparison",
+                new Option1Panel(userId)
         );
 
         tabs.add(
-                "Option 2",
-                new Option2Panel()
+                "Online Comparison",
+                new Option2Panel(userId)
         );
 
         tabs.add(
-                "Option 3",
+                "Topic Search",
                 new Option3Panel()
         );
 

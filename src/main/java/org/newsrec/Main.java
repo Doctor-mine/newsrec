@@ -1,13 +1,16 @@
 package org.newsrec;
 
-import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 import org.newsrec.network.LoginServer;
 import org.newsrec.ui.LoginFrame;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
 
 public class Main {
+
+    private static final Logger logger = LogManager.getLogger(Main.class);
 
     public static void main(String[] args) {
 
@@ -17,7 +20,7 @@ public class Main {
             ).start();
             UIManager.setLookAndFeel(new FlatLightLaf());
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Failed to initialize application", e);
         }
 
         SwingUtilities.invokeLater(() ->

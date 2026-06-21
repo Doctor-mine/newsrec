@@ -4,12 +4,16 @@ import org.newsrec.crawler.*;
 import org.newsrec.model.RecommendationResult;
 import org.newsrec.reader.ReaderFactory;
 import org.newsrec.recommendation.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.util.*;
 import java.util.function.Consumer;
 
 public class OnlineRecommendationService {
+
+    private static final Logger logger = LogManager.getLogger(OnlineRecommendationService.class);
 
     public List<RecommendationResult>
     recommend(File uploadedFile, Consumer<String> progress) {
@@ -29,7 +33,19 @@ public class OnlineRecommendationService {
                         );
 
         if (keywords.isEmpty()) {
-            keywords.add("");
+            progress.accept("  - No keywords extracted, using full content.\n");
+            keywords = new KeywordExtractor()
+                    .extractKeywords(
+                            content.substring(
+                                    0, Math.min(content.length(), 1000)
+                            ),
+                            5
+                    );
+        }
+
+        if (keywords.isEmpty()) {
+            keywords.add("artificial intelligence");
+            progress.accept("  - Falling back to default keyword.\n");
         }
 
         progress.accept("Fetching online articles...\n");

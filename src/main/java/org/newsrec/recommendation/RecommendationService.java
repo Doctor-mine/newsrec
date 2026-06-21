@@ -29,18 +29,20 @@ public class RecommendationService {
                             .getReader(baseFile)
                             .read(baseFile);
 
+            Map<File, String> fileTexts =
+                    new HashMap<>();
+
             List<String> corpus =
                     new ArrayList<>();
 
             corpus.add(baseText);
 
             for(File f : compareFiles){
-
-                corpus.add(
-                        ReaderFactory
-                                .getReader(f)
-                                .read(f)
-                );
+                String text = ReaderFactory
+                        .getReader(f)
+                        .read(f);
+                fileTexts.put(f, text);
+                corpus.add(text);
             }
 
             Map<String, Double> baseVector =
@@ -54,10 +56,7 @@ public class RecommendationService {
 
             for(File file : compareFiles){
 
-                String text =
-                        ReaderFactory
-                                .getReader(file)
-                                .read(file);
+                String text = fileTexts.get(file);
 
                 Map<String, Double> vector =
                         vectorizer.buildVector(

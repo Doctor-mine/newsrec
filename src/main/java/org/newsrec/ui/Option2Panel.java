@@ -1,8 +1,13 @@
 package org.newsrec.ui;
 
+import org.newsrec.dao.HistoryDAO;
 import org.newsrec.model.RecommendationResult;
 import org.newsrec.service.OnlineRecommendationService;
 import org.newsrec.util.BrowserUtil;
+import org.newsrec.util.CsvExporter;
+import org.newsrec.util.HtmlUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
 import javax.swing.event.HyperlinkEvent;
@@ -12,23 +17,53 @@ import java.util.List;
 
 public class Option2Panel extends JPanel {
 
+    private static final Logger logger = LogManager.getLogger(Option2Panel.class);
+
+    private final int userId;
+    private final HistoryDAO historyDAO = new HistoryDAO();
+
     private JEditorPane results;
 
     private JButton uploadBtn;
 
-    public Option2Panel() {
+    private JButton exportBtn;
+
+    private JProgressBar progressBar;
+
+    private List<RecommendationResult> lastResults;
+
+    public Option2Panel(int userId) {
+        this.userId = userId;
 
         setLayout(
                 new BorderLayout()
         );
 
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
         uploadBtn =
                 new JButton(
                         "Upload File"
                 );
+        topPanel.add(uploadBtn);
+
+        exportBtn =
+                new JButton("Export CSV");
+        exportBtn.setEnabled(false);
+        topPanel.add(exportBtn);
+
         add(
-                uploadBtn,
+                topPanel,
                 BorderLayout.NORTH
+        );
+
+        progressBar =
+                new JProgressBar();
+        progressBar.setIndeterminate(true);
+        progressBar.setVisible(false);
+        add(
+                progressBar,
+                BorderLayout.SOUTH
         );
 
         results =
@@ -51,10 +86,17 @@ public class Option2Panel extends JPanel {
                 BorderLayout.CENTER
         );
 
+        exportBtn.addActionListener(e -> exportCsv());
+
         uploadBtn.addActionListener(e -> {
 
             JFileChooser fileChooser =
                     new JFileChooser();
+            fileChooser.setFileFilter(
+                    new javax.swing.filechooser.FileNameExtensionFilter(
+                            "Documents (PDF, DOCX)", "pdf", "docx"
+                    )
+            );
 
             int result =
                     fileChooser.showOpenDialog(this);
@@ -65,6 +107,7 @@ public class Option2Panel extends JPanel {
                         fileChooser.getSelectedFile();
 
                 uploadBtn.setEnabled(false);
+                progressBar.setVisible(true);
                 results.setText(
                         "<html><body><p>Starting...</p>"
                 );
@@ -113,6 +156,9 @@ public class Option2Panel extends JPanel {
                             protected void done() {
                                 try {
                                     List<RecommendationResult> recommendations = get();
+                                    lastResults = recommendations;
+                                    saveHistory(recommendations);
+                                    exportBtn.setEnabled(!recommendations.isEmpty());
                                     StringBuilder html =
                                             new StringBuilder();
                                     html.append(
@@ -130,10 +176,10 @@ public class Option2Panel extends JPanel {
                                                 : recommendations) {
                                             html.append(
                                                     "<p><b>"
-                                                            + r.getFileName()
+                                                            + HtmlUtils.escape(r.getFileName())
                                                             + "</b><br>"
                                                             + "<i>Source: "
-                                                            + r.getSource()
+                                                            + HtmlUtils.escape(r.getSource())
                                                             + "</i><br>"
                                                             + "Score: "
                                                             + String.format(
@@ -142,9 +188,9 @@ public class Option2Panel extends JPanel {
                                                             )
                                                             + "<br>"
                                                             + "<a href='"
-                                                            + r.getLink()
+                                                            + HtmlUtils.escape(r.getLink())
                                                             + "'>"
-                                                            + r.getLink()
+                                                            + HtmlUtils.escape(r.getLink())
                                                             + "</a></p>"
                                                             + "<hr>"
                                             );
@@ -169,6 +215,7 @@ public class Option2Panel extends JPanel {
                                     );
                                 } finally {
                                     uploadBtn.setEnabled(true);
+                                    progressBar.setVisible(false);
                                 }
                             }
                         };
@@ -176,5 +223,24 @@ public class Option2Panel extends JPanel {
                 worker.execute();
             }
         });
+    }
+
+    private void exportCsv() {
+        if (lastResults == null || lastResults.isEmpty()) return;
+
+        JFileChooser chooser = new JFileChooser();
+        chooser.setSelectedFile(new File("online_results.csv"));
+        if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            CsvExporter.export(lastResults, chooser.getSelectedFile());
+            JOptionPane.showMessageDialog(this, "Exported to " + chooser.getSelectedFile().getName());
+        }
+    }
+
+    private void saveHistory(List<RecommendationResult> results) {
+        if (userId <= 0) return;
+        String baseName = "Online Analysis";
+        for (RecommendationResult r : results) {
+            historyDAO.save(userId, baseName, r.getFileName(), r.getSimilarity());
+        }
     }
 }

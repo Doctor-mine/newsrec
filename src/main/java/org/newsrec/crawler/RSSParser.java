@@ -6,8 +6,12 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class RSSParser {
+
+    private static final Logger logger = LogManager.getLogger(RSSParser.class);
 
     public List<RSSArticle> parse(
             String rssUrl,
@@ -22,10 +26,13 @@ public class RSSParser {
             URL url =
                     new URL(rssUrl);
 
+            DocumentBuilderFactory factory =
+                    DocumentBuilderFactory.newInstance();
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
             DocumentBuilder builder =
-                    DocumentBuilderFactory
-                            .newInstance()
-                            .newDocumentBuilder();
+                    factory.newDocumentBuilder();
 
             HttpURLConnection conn =
                     (HttpURLConnection) url.openConnection();
@@ -77,7 +84,7 @@ public class RSSParser {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            logger.error("Failed to parse RSS feed from {}", rssUrl, e);
         }
 
         return articles;

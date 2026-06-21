@@ -10,12 +10,23 @@ public class AuthService {
     private AuthService() {
     }
 
-    public static boolean authenticate(
+    public static int authenticate(
             String username,
             String password
     ) {
 
         return userDAO.login(
+                username,
+                password
+        );
+    }
+
+    public static int register(
+            String username,
+            String password
+    ) {
+
+        return userDAO.register(
                 username,
                 password
         );

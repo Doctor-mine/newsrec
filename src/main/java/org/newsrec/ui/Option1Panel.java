@@ -1,16 +1,26 @@
 package org.newsrec.ui;
 
+import org.newsrec.dao.HistoryDAO;
 import org.newsrec.model.RecommendationResult;
 import org.newsrec.recommendation.RecommendationService;
+import org.newsrec.util.CsvExporter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Option1Panel extends JPanel {
+
+    private static final Logger logger = LogManager.getLogger(Option1Panel.class);
+
+    private final int userId;
+    private final HistoryDAO historyDAO = new HistoryDAO();
 
     private File baseFile;
 
@@ -26,13 +36,20 @@ public class Option1Panel extends JPanel {
 
     private JPanel resultsPanel;
 
+    private JProgressBar progressBar;
+
     private JButton baseBtn;
     private JButton removeBaseBtn;
     private JButton compareBtn;
     private JButton removeCompareBtn;
     private JButton analyzeBtn;
 
-    public Option1Panel() {
+    private JButton exportBtn;
+
+    private List<RecommendationResult> lastResults;
+
+    public Option1Panel(int userId) {
+        this.userId = userId;
 
         setLayout(new BorderLayout());
 
@@ -65,11 +82,16 @@ public class Option1Panel extends JPanel {
                         "Analyze"
                 );
 
+        exportBtn =
+                new JButton("Export CSV");
+        exportBtn.setEnabled(false);
+
         top.add(baseBtn);
         top.add(removeBaseBtn);
         top.add(compareBtn);
         top.add(removeCompareBtn);
         top.add(analyzeBtn);
+        top.add(exportBtn);
 
         add(
                 top,
@@ -126,6 +148,11 @@ public class Option1Panel extends JPanel {
                 )
         );
 
+        progressBar =
+                new JProgressBar();
+        progressBar.setIndeterminate(true);
+        progressBar.setVisible(false);
+
         JScrollPane bottomScroll =
                 new JScrollPane(resultsPanel);
         bottomScroll.setBorder(
@@ -135,8 +162,12 @@ public class Option1Panel extends JPanel {
                 new Dimension(400, 200)
         );
 
+        JPanel southPanel = new JPanel(new BorderLayout());
+        southPanel.add(progressBar, BorderLayout.NORTH);
+        southPanel.add(bottomScroll, BorderLayout.CENTER);
+
         add(
-                bottomScroll,
+                southPanel,
                 BorderLayout.SOUTH
         );
 
@@ -159,12 +190,30 @@ public class Option1Panel extends JPanel {
         analyzeBtn.addActionListener(
                 e -> analyze()
         );
+
+        exportBtn.addActionListener(e -> exportCsv());
+    }
+
+    private void exportCsv() {
+        if (lastResults == null || lastResults.isEmpty()) return;
+
+        JFileChooser chooser = new JFileChooser();
+        chooser.setSelectedFile(new File("analysis_results.csv"));
+        if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            CsvExporter.export(lastResults, chooser.getSelectedFile());
+            JOptionPane.showMessageDialog(this, "Exported to " + chooser.getSelectedFile().getName());
+        }
     }
 
     private void chooseBase() {
 
         JFileChooser chooser =
                 new JFileChooser();
+        chooser.setFileFilter(
+                new FileNameExtensionFilter(
+                        "Documents (PDF, DOCX)", "pdf", "docx"
+                )
+        );
 
         if (
                 chooser.showOpenDialog(this)
@@ -186,12 +235,18 @@ public class Option1Panel extends JPanel {
         baseFile = null;
         baseFileLabel.setText("(none)");
         removeBaseBtn.setEnabled(false);
+        exportBtn.setEnabled(false);
     }
 
     private void chooseFiles() {
 
         JFileChooser chooser =
                 new JFileChooser();
+        chooser.setFileFilter(
+                new FileNameExtensionFilter(
+                        "Documents (PDF, DOCX)", "pdf", "docx"
+                )
+        );
 
         chooser.setMultiSelectionEnabled(
                 true
@@ -258,9 +313,7 @@ public class Option1Panel extends JPanel {
 
         setButtonsEnabled(false);
         resultsPanel.removeAll();
-        resultsPanel.add(
-                new JLabel("Analyzing...")
-        );
+        progressBar.setVisible(true);
         resultsPanel.revalidate();
         resultsPanel.repaint();
 
@@ -280,7 +333,10 @@ public class Option1Panel extends JPanel {
                     protected void done() {
                         try {
                             List<RecommendationResult> results = get();
+                            lastResults = results;
+                            saveHistory(results);
                             displayResults(results);
+                            exportBtn.setEnabled(!results.isEmpty());
                         } catch (Exception ex) {
                             resultsPanel.removeAll();
                             resultsPanel.add(
@@ -296,6 +352,7 @@ public class Option1Panel extends JPanel {
                             );
                         } finally {
                             setButtonsEnabled(true);
+                            progressBar.setVisible(false);
                             resultsPanel.revalidate();
                             resultsPanel.repaint();
                         }
@@ -366,6 +423,14 @@ public class Option1Panel extends JPanel {
         resultsPanel.repaint();
     }
 
+    private void saveHistory(List<RecommendationResult> results) {
+        if (userId <= 0 || baseFile == null) return;
+        String baseName = baseFile.getName();
+        for (RecommendationResult r : results) {
+            historyDAO.save(userId, baseName, r.getFileName(), r.getSimilarity());
+        }
+    }
+
     private void openInExplorer(String path) {
 
         if (path == null || path.isEmpty()) {
@@ -376,14 +441,16 @@ public class Option1Panel extends JPanel {
 
             Runtime.getRuntime()
                     .exec(
-                            "explorer.exe /select,\""
-                                    + path
-                                    + "\""
+                            new String[]{
+                                    "explorer.exe",
+                                    "/select,",
+                                    path
+                            }
                     );
 
         } catch (Exception ex) {
 
-            ex.printStackTrace();
+            logger.error("Failed to open in explorer for path: {}", path, ex);
         }
     }
 

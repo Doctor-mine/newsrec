@@ -19,15 +19,14 @@ public class CosineSimilarity {
         double magB = 0;
 
         for(String term : a.keySet()){
-
             double x = a.get(term);
-
             double y = b.getOrDefault(term, 0.0);
-
             dot += x * y;
-
             magA += x * x;
+        }
 
+        for(String term : b.keySet()){
+            double y = b.get(term);
             magB += y * y;
         }
 

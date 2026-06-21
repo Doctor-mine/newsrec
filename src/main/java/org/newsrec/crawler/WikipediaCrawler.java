@@ -2,13 +2,15 @@ package org.newsrec.crawler;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
 public class WikipediaCrawler {
+
+    private static final Logger logger = LogManager.getLogger(WikipediaCrawler.class);
 
     public List<RSSArticle> search(
             String keyword
@@ -21,11 +23,7 @@ public class WikipediaCrawler {
 
             String url =
                     "https://en.wikipedia.org/wiki/"
-                            +
-                            URLEncoder.encode(
-                                    keyword,
-                                    StandardCharsets.UTF_8
-                            );
+                            + keyword.replace(" ", "_");
 
             Document doc =
                     Jsoup.connect(url)
@@ -51,7 +49,7 @@ public class WikipediaCrawler {
 
         } catch (Exception e) {
 
-            e.printStackTrace();
+            logger.error("Failed to fetch Wikipedia page for keyword: {}", keyword, e);
         }
 
         return articles;
