@@ -9,16 +9,10 @@ public class SimilarityMatrix {
     private final double[][] matrix;
     private final List<String> labels;
 
-    public SimilarityMatrix(
-            List<Map<String, Double>> vectors,
-            List<String> labels
-    ) {
+    public SimilarityMatrix(List<Map<String, Double>> vectors, List<String> labels) {
         int n = vectors.size();
         if (labels.size() != n) {
-            throw new IllegalArgumentException(
-                    "labels size (" + labels.size()
-                    + ") must match vectors size (" + n + ")"
-            );
+            throw new IllegalArgumentException("labels size (" + labels.size() + ") must match vectors size (" + n + ")");
         }
         this.matrix = new double[n][n];
         this.labels = List.copyOf(labels);
@@ -37,29 +31,19 @@ public class SimilarityMatrix {
         }
     }
 
-    public int size() {
-        return matrix.length;
-    }
+    public int size() { return matrix.length; }
 
-    public double get(int i, int j) {
-        return matrix[i][j];
-    }
+    public double get(int i, int j) { return matrix[i][j]; }
 
-    public double[] getRow(int i) {
-        return matrix[i];
-    }
+    public double[] getRow(int i) { return matrix[i]; }
 
-    public String getLabel(int i) {
-        return labels.get(i);
-    }
+    public String getLabel(int i) { return labels.get(i); }
 
     public List<Integer> topK(int i, int k) {
         return IntStream.range(0, size())
                 .filter(j -> j != i)
                 .boxed()
-                .sorted(Comparator.comparingDouble(
-                        (Integer j) -> matrix[i][j]
-                ).reversed())
+                .sorted(Comparator.comparingDouble((Integer j) -> matrix[i][j]).reversed())
                 .limit(k)
                 .collect(Collectors.toList());
     }

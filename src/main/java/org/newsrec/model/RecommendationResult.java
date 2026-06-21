@@ -3,47 +3,24 @@ package org.newsrec.model;
 public class RecommendationResult {
 
     private String fileName;
-
     private String filePath;
-
     private double similarity;
-
     private String source;
-
     private String link;
 
-    public RecommendationResult(
-            String fileName,
-            double similarity
-    ) {
+    public RecommendationResult(String fileName, double similarity) {
         this(fileName, "", similarity, "", "");
     }
 
-    public RecommendationResult(
-            String fileName,
-            String filePath,
-            double similarity
-    ) {
+    public RecommendationResult(String fileName, String filePath, double similarity) {
         this(fileName, filePath, similarity, "", "");
     }
 
-    public RecommendationResult(
-            String fileName,
-            String source,
-            String link,
-            double similarity
-    ) {
+    public RecommendationResult(String fileName, String source, String link, double similarity) {
         this(fileName, "", similarity, source, link);
     }
 
-    public RecommendationResult(
-            String fileName,
-            String filePath,
-            double similarity,
-            String source,
-            String link
-    ) {
-
+    public RecommendationResult(String fileName, String filePath, double similarity, String source, String link) {
         this.fileName = fileName;
         this.filePath = filePath;
         this.similarity = similarity;
@@ -51,23 +28,13 @@ public class RecommendationResult {
         this.link = link;
     }
 
-    public String getFileName() {
-        return fileName;
-    }
+    public String getFileName() { return fileName; }
 
-    public String getFilePath() {
-        return filePath;
-    }
+    public String getFilePath() { return filePath; }
 
-    public double getSimilarity() {
-        return similarity;
-    }
+    public double getSimilarity() { return similarity; }
 
-    public String getSource() {
-        return source;
-    }
+    public String getSource() { return source; }
 
-    public String getLink() {
-        return link;
-    }
+    public String getLink() { return link; }
 }

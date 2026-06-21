@@ -13,8 +13,7 @@ public class DBConnection {
     private static final Properties props = new Properties();
 
     static {
-        try (InputStream in = DBConnection.class.getClassLoader()
-                .getResourceAsStream("application.properties")) {
+        try (InputStream in = DBConnection.class.getClassLoader().getResourceAsStream("application.properties")) {
             if (in == null) {
                 throw new RuntimeException("application.properties not found on classpath");
             }
@@ -25,14 +24,12 @@ public class DBConnection {
     }
 
     public static Connection getConnection() {
-
         try {
             return DriverManager.getConnection(
                     props.getProperty("db.url"),
                     props.getProperty("db.user"),
                     props.getProperty("db.password")
             );
-
         } catch (Exception e) {
             logger.error("Database connection failed", e);
             throw new RuntimeException(e);

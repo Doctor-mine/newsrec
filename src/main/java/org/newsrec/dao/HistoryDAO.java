@@ -11,15 +11,8 @@ public class HistoryDAO {
 
     private static final Logger logger = LogManager.getLogger(HistoryDAO.class);
 
-    public void save(
-            int userId,
-            String baseFile,
-            String comparedFile,
-            double similarity
-    ) {
-
-        String sql =
-                """
+    public void save(int userId, String baseFile, String comparedFile, double similarity) {
+        String sql = """
                 INSERT INTO analysis_history
                 (
                     user_id,
@@ -33,26 +26,16 @@ public class HistoryDAO {
                 )
                 """;
 
-        try (
-
-                Connection con =
-                        DBConnection
-                                .getConnection();
-
-                PreparedStatement ps =
-                        con.prepareStatement(sql)
-
-        ) {
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
 
             ps.setInt(1, userId);
             ps.setString(2, baseFile);
             ps.setString(3, comparedFile);
             ps.setDouble(4, similarity);
-
             ps.executeUpdate();
 
         } catch (Exception e) {
-
             logger.error("Failed to save analysis history for user {}", userId, e);
         }
     }

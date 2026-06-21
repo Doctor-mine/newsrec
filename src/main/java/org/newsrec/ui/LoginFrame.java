@@ -22,7 +22,6 @@ public class LoginFrame extends JFrame {
     private JButton regBtn;
 
     public LoginFrame() {
-
         setTitle("News Recommendation");
         setSize(430, 360);
         setLocationRelativeTo(null);
@@ -55,7 +54,6 @@ public class LoginFrame extends JFrame {
     }
 
     private JPanel buildLoginPanel() {
-
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(6, 20, 6, 20);
@@ -105,7 +103,6 @@ public class LoginFrame extends JFrame {
     }
 
     private JPanel buildRegisterPanel() {
-
         JPanel panel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 20, 5, 20);
@@ -163,12 +160,8 @@ public class LoginFrame extends JFrame {
     }
 
     private void login() {
-
         LoginClient client = new LoginClient();
-        int userId = client.login(
-                loginUsername.getText(),
-                String.valueOf(loginPassword.getPassword())
-        );
+        int userId = client.login(loginUsername.getText(), String.valueOf(loginPassword.getPassword()));
 
         if (userId > 0) {
             dispose();
@@ -179,7 +172,6 @@ public class LoginFrame extends JFrame {
     }
 
     private void register() {
-
         String username = regUsername.getText().trim();
         String password = String.valueOf(regPassword.getPassword());
         String confirm = String.valueOf(regConfirm.getPassword());

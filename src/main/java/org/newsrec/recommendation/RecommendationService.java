@@ -8,104 +8,50 @@ import java.util.*;
 
 public class RecommendationService {
 
-    private final TFIDFVectorizer vectorizer =
-            new TFIDFVectorizer();
+    private final TFIDFVectorizer vectorizer = new TFIDFVectorizer();
 
-    public List<RecommendationResult> compareFiles(
-            File baseFile,
-            List<File> compareFiles
-    ) {
+    public List<RecommendationResult> compareFiles(File baseFile, List<File> compareFiles) {
         return compareFiles(baseFile, compareFiles, Integer.MAX_VALUE);
     }
 
-    public List<RecommendationResult> compareFiles(
-            File baseFile,
-            List<File> compareFiles,
-            int topK
-    ) {
-
+    public List<RecommendationResult> compareFiles(File baseFile, List<File> compareFiles, int topK) {
         try {
-
-            String baseText =
-                    ReaderFactory
-                            .getReader(baseFile)
-                            .read(baseFile);
-
-            Map<File, String> fileTexts =
-                    new HashMap<>();
-
-            List<String> corpus =
-                    new ArrayList<>();
-
+            String baseText = ReaderFactory.getReader(baseFile).read(baseFile);
+            Map<File, String> fileTexts = new HashMap<>();
+            List<String> corpus = new ArrayList<>();
             corpus.add(baseText);
 
-            for(File f : compareFiles){
-                String text = ReaderFactory
-                        .getReader(f)
-                        .read(f);
+            for (File f : compareFiles) {
+                String text = ReaderFactory.getReader(f).read(f);
                 fileTexts.put(f, text);
                 corpus.add(text);
             }
 
-            Map<String, Double> baseVector =
-                    vectorizer.normalize(
-                            vectorizer.buildVector(
-                                    baseText,
-                                    corpus
-                            )
-                    );
-
-            List<Map<String, Double>> allVectors =
-                    new ArrayList<>();
-
+            Map<String, Double> baseVector = vectorizer.normalize(vectorizer.buildVector(baseText, corpus));
+            List<Map<String, Double>> allVectors = new ArrayList<>();
             allVectors.add(baseVector);
-
-            List<String> allLabels =
-                    new ArrayList<>();
-
+            List<String> allLabels = new ArrayList<>();
             allLabels.add(baseFile.getName());
 
-            for(File file : compareFiles){
+            for (File file : compareFiles) {
                 String text = fileTexts.get(file);
-                Map<String, Double> vec =
-                        vectorizer.normalize(
-                                vectorizer.buildVector(
-                                        text,
-                                        corpus
-                                )
-                        );
-                allVectors.add(vec);
+                allVectors.add(vectorizer.normalize(vectorizer.buildVector(text, corpus)));
                 allLabels.add(file.getName());
             }
 
-            SimilarityMatrix simMatrix =
-                    new SimilarityMatrix(
-                            allVectors,
-                            allLabels
-                    );
-
-            List<Map.Entry<Integer, Double>> top =
-                    simMatrix.topKWithScores(0, topK);
-
-            List<RecommendationResult> results =
-                    new ArrayList<>();
+            SimilarityMatrix simMatrix = new SimilarityMatrix(allVectors, allLabels);
+            List<Map.Entry<Integer, Double>> top = simMatrix.topKWithScores(0, topK);
+            List<RecommendationResult> results = new ArrayList<>();
 
             for (Map.Entry<Integer, Double> entry : top) {
                 int idx = entry.getKey();
                 File file = compareFiles.get(idx - 1);
-                results.add(
-                        new RecommendationResult(
-                                file.getName(),
-                                file.getAbsolutePath(),
-                                entry.getValue()
-                        )
-                );
+                results.add(new RecommendationResult(file.getName(), file.getAbsolutePath(), entry.getValue()));
             }
 
             return results;
 
-        } catch (Exception e){
-
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

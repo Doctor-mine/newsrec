@@ -14,65 +14,28 @@ public class LoginServer {
     private static final int PORT = 9999;
 
     public void start() {
-
-        try (
-                ServerSocket serverSocket =
-                        new ServerSocket(PORT)
-        ) {
-
-            logger.info(
-                    "Login server running on port {}",
-                    PORT
-            );
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+            logger.info("Login server running on port {}", PORT);
 
             while (true) {
-
-                Socket socket =
-                        serverSocket.accept();
-
-                new Thread(() ->
-                        handleClient(socket)
-                ).start();
+                Socket socket = serverSocket.accept();
+                new Thread(() -> handleClient(socket)).start();
             }
 
         } catch (java.net.BindException e) {
-
             logger.error("Port {} is already in use – another instance may be running.", PORT);
-
         } catch (Exception e) {
-
             logger.error("Login server error", e);
         }
     }
 
-    private void handleClient(
-            Socket socket
-    ) {
+    private void handleClient(Socket socket) {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+             PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
 
-        try (
-
-                BufferedReader in =
-                        new BufferedReader(
-                                new InputStreamReader(
-                                        socket.getInputStream()
-                                )
-                        );
-
-                PrintWriter out =
-                        new PrintWriter(
-                                socket.getOutputStream(),
-                                true
-                        )
-        ) {
-
-            String action =
-                    in.readLine();
-
-            String username =
-                    in.readLine();
-
-            String password =
-                    in.readLine();
+            String action = in.readLine();
+            String username = in.readLine();
+            String password = in.readLine();
 
             int userId = 0;
             if ("REG".equals(action)) {
@@ -80,11 +43,9 @@ public class LoginServer {
             } else {
                 userId = AuthService.authenticate(username, password);
             }
-
             out.println(userId);
 
         } catch (Exception e) {
-
             logger.error("Error handling login client", e);
         }
     }

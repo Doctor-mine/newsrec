@@ -8,28 +8,13 @@ import java.util.stream.Collectors;
 
 public class TopicSearchService {
 
-    public List<RSSArticle> search(
-            String topic
-    ) {
-
+    public List<RSSArticle> search(String topic) {
         return new CrawlerManager()
                 .collectArticles(List.of(topic))
                 .stream()
                 .filter(article ->
-
-                        article.getTitle()
-                                .toLowerCase()
-                                .contains(
-                                        topic.toLowerCase()
-                                )
-
-                                ||
-
-                                article.getDescription()
-                                        .toLowerCase()
-                                        .contains(
-                                                topic.toLowerCase()
-                                        )
+                        article.getTitle().toLowerCase().contains(topic.toLowerCase())
+                                || article.getDescription().toLowerCase().contains(topic.toLowerCase())
                 )
                 .collect(Collectors.toList());
     }

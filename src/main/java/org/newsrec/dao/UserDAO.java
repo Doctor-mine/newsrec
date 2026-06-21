@@ -13,55 +13,34 @@ public class UserDAO {
 
     private static final Logger logger = LogManager.getLogger(UserDAO.class);
 
-    public int login(
-            String username,
-            String password
-    ) {
-
-        String sql =
-                """
+    public int login(String username, String password) {
+        String sql = """
                 SELECT id
                 FROM users
                 WHERE username = ?
                 AND password_hash = ?
                 """;
 
-        try (
-
-                Connection con =
-                        DBConnection.getConnection();
-
-                PreparedStatement ps =
-                        con.prepareStatement(sql)
-
-        ) {
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
 
             ps.setString(1, username);
             ps.setString(2, password);
-
-            ResultSet rs =
-                    ps.executeQuery();
+            ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
-
                 return rs.getInt("id");
             }
 
         } catch (Exception e) {
-
             logger.error("Login query failed for user: {}", username, e);
         }
 
         return 0;
     }
 
-    public int register(
-            String username,
-            String password
-    ) {
-
-        String sql =
-                """
+    public int register(String username, String password) {
+        String sql = """
                 INSERT INTO users
                 (
                     username,
@@ -73,18 +52,8 @@ public class UserDAO {
                 )
                 """;
 
-        try (
-
-                Connection con =
-                        DBConnection.getConnection();
-
-                PreparedStatement ps =
-                        con.prepareStatement(
-                                sql,
-                                Statement.RETURN_GENERATED_KEYS
-                        )
-
-        ) {
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, username);
             ps.setString(2, password);
@@ -98,7 +67,6 @@ public class UserDAO {
             }
 
         } catch (Exception e) {
-
             logger.error("Registration failed for user: {}", username, e);
         }
 

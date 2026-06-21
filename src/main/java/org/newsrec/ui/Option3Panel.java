@@ -17,164 +17,85 @@ public class Option3Panel extends JPanel {
     private static final Logger logger = LogManager.getLogger(Option3Panel.class);
 
     private JTextField topicField;
-
     private JEditorPane resultPane;
-
     private JButton searchBtn;
-
     private JProgressBar progressBar;
 
     public Option3Panel() {
+        setLayout(new BorderLayout());
 
-        setLayout(
-                new BorderLayout()
-        );
+        JPanel top = new JPanel();
+        topicField = new JTextField(30);
+        searchBtn = new JButton("Search");
+        top.add(topicField);
+        top.add(searchBtn);
+        add(top, BorderLayout.NORTH);
 
-        JPanel top =
-                new JPanel();
-
-        topicField =
-                new JTextField(
-                        30
-                );
-
-        searchBtn =
-                new JButton(
-                        "Search"
-                );
-
-        top.add(
-                topicField
-        );
-
-        top.add(
-                searchBtn
-        );
-
-        add(
-                top,
-                BorderLayout.NORTH
-        );
-
-        progressBar =
-                new JProgressBar();
+        progressBar = new JProgressBar();
         progressBar.setIndeterminate(true);
         progressBar.setVisible(false);
-        add(
-                progressBar,
-                BorderLayout.SOUTH
-        );
+        add(progressBar, BorderLayout.SOUTH);
 
-        resultPane =
-                new JEditorPane();
-        resultPane.setContentType(
-                "text/html"
-        );
+        resultPane = new JEditorPane();
+        resultPane.setContentType("text/html");
         resultPane.setEditable(false);
         resultPane.addHyperlinkListener(e -> {
-            if (e.getEventType()
-                    == HyperlinkEvent.EventType.ACTIVATED) {
-                BrowserUtil.open(
-                        e.getURL().toString()
-                );
+            if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
+                BrowserUtil.open(e.getURL().toString());
             }
         });
+        add(new JScrollPane(resultPane), BorderLayout.CENTER);
 
-        add(
-                new JScrollPane(
-                        resultPane
-                ),
-                BorderLayout.CENTER
-        );
-
-        searchBtn.addActionListener(
-                e -> search()
-        );
-
-        topicField.addActionListener(
-                e -> search()
-        );
+        searchBtn.addActionListener(e -> search());
+        topicField.addActionListener(e -> search());
     }
 
     private void search() {
-
-        String topic =
-                topicField.getText().trim();
+        String topic = topicField.getText().trim();
 
         if (topic.isEmpty()) {
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Please enter a search term."
-            );
+            JOptionPane.showMessageDialog(this, "Please enter a search term.");
             return;
         }
 
         searchBtn.setEnabled(false);
         progressBar.setVisible(true);
-        resultPane.setText(
-                "<html><body>"
-                        + "<p><b>Searching for: "
-                        + HtmlUtils.escape(topic)
-                        + "</b></p>"
-        );
+        resultPane.setText("<html><body><p><b>Searching for: " + HtmlUtils.escape(topic) + "</b></p>");
 
-        SwingWorker<List<RSSArticle>, Void> worker =
-                new SwingWorker<>() {
-                    @Override
-                    protected List<RSSArticle> doInBackground() {
-                        TopicSearchService service =
-                                new TopicSearchService();
-                        return service.search(topic);
-                    }
+        SwingWorker<List<RSSArticle>, Void> worker = new SwingWorker<>() {
+            @Override
+            protected List<RSSArticle> doInBackground() {
+                return new TopicSearchService().search(topic);
+            }
 
-                    @Override
-                    protected void done() {
-                        try {
-                            List<RSSArticle> articles = get();
-                            StringBuilder html =
-                                    new StringBuilder();
-                            html.append(
-                                    "<html><body>"
-                            );
-                            if (articles.isEmpty()) {
-                                html.append(
-                                        "<p>No articles found.</p>"
-                                );
-                            } else {
-                                for (RSSArticle article
-                                        : articles) {
-                                    html.append(
-                                            "<p><b>"
-                                                    + HtmlUtils.escape(article.getTitle())
-                                                    + "</b><br>"
-                                                    + "<i>Source: "
-                                                    + HtmlUtils.escape(article.getSource())
-                                                    + "</i><br>"
-                                                    + "<a href='"
-                                                    + HtmlUtils.escape(article.getLink())
-                                                    + "'>"
-                                                    + HtmlUtils.escape(article.getLink())
-                                                    + "</a></p>"
-                                                    + "<hr>"
-                                    );
-                                }
-                            }
-                            html.append("</body></html>");
-                            resultPane.setText(
-                                    html.toString()
-                            );
-                        } catch (Exception ex) {
-                            resultPane.setText(
-                                    "<html><body><p>Error: "
-                                            + ex.getMessage()
-                                            + "</p></body></html>"
-                            );
-                        } finally {
-                            searchBtn.setEnabled(true);
-                            progressBar.setVisible(false);
+            @Override
+            protected void done() {
+                try {
+                    List<RSSArticle> articles = get();
+                    StringBuilder html = new StringBuilder();
+                    html.append("<html><body>");
+
+                    if (articles.isEmpty()) {
+                        html.append("<p>No articles found.</p>");
+                    } else {
+                        for (RSSArticle article : articles) {
+                            html.append("<p><b>" + HtmlUtils.escape(article.getTitle()) + "</b><br>"
+                                    + "<i>Source: " + HtmlUtils.escape(article.getSource()) + "</i><br>"
+                                    + "<a href='" + HtmlUtils.escape(article.getLink()) + "'>"
+                                    + HtmlUtils.escape(article.getLink()) + "</a></p><hr>");
                         }
                     }
-                };
+                    html.append("</body></html>");
+                    resultPane.setText(html.toString());
+
+                } catch (Exception ex) {
+                    resultPane.setText("<html><body><p>Error: " + ex.getMessage() + "</p></body></html>");
+                } finally {
+                    searchBtn.setEnabled(true);
+                    progressBar.setVisible(false);
+                }
+            }
+        };
 
         worker.execute();
     }

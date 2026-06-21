@@ -10,19 +10,10 @@ public class BrowserUtil {
 
     private static final Logger logger = LogManager.getLogger(BrowserUtil.class);
 
-    public static void open(
-            String url
-    ) {
-
+    public static void open(String url) {
         try {
-
-            Desktop.getDesktop()
-                    .browse(
-                            new URI(url)
-                    );
-
+            Desktop.getDesktop().browse(new URI(url));
         } catch (Exception e) {
-
             logger.error("Failed to open URL: {}", url, e);
         }
     }

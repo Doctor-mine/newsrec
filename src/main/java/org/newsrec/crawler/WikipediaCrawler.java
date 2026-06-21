@@ -12,43 +12,19 @@ public class WikipediaCrawler {
 
     private static final Logger logger = LogManager.getLogger(WikipediaCrawler.class);
 
-    public List<RSSArticle> search(
-            String keyword
-    ) {
-
-        List<RSSArticle> articles =
-                new ArrayList<>();
+    public List<RSSArticle> search(String keyword) {
+        List<RSSArticle> articles = new ArrayList<>();
 
         try {
+            String url = "https://en.wikipedia.org/wiki/" + keyword.replace(" ", "_");
+            Document doc = Jsoup.connect(url).timeout(5000).get();
 
-            String url =
-                    "https://en.wikipedia.org/wiki/"
-                            + keyword.replace(" ", "_");
+            String title = doc.title();
+            String description = doc.select("p").first().text();
 
-            Document doc =
-                    Jsoup.connect(url)
-                            .timeout(5000)
-                            .get();
-
-            String title =
-                    doc.title();
-
-            String description =
-                    doc.select("p")
-                            .first()
-                            .text();
-
-            articles.add(
-                    new RSSArticle(
-                            title,
-                            url,
-                            description,
-                            "Wikipedia"
-                    )
-            );
+            articles.add(new RSSArticle(title, url, description, "Wikipedia"));
 
         } catch (Exception e) {
-
             logger.error("Failed to fetch Wikipedia page for keyword: {}", keyword, e);
         }
 

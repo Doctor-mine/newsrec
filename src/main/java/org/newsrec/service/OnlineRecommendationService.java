@@ -15,37 +15,22 @@ public class OnlineRecommendationService {
 
     private static final Logger logger = LogManager.getLogger(OnlineRecommendationService.class);
 
-    public List<RecommendationResult>
-    recommend(File uploadedFile, Consumer<String> progress) {
+    public List<RecommendationResult> recommend(File uploadedFile, Consumer<String> progress) {
         return recommend(uploadedFile, progress, Integer.MAX_VALUE);
     }
 
-    public List<RecommendationResult>
-    recommend(File uploadedFile, Consumer<String> progress, int topK) {
-
+    public List<RecommendationResult> recommend(File uploadedFile, Consumer<String> progress, int topK) {
         progress.accept("Reading file...\n");
-        String content =
-                ReaderFactory
-                        .getReader(uploadedFile)
-                        .read(uploadedFile);
+        String content = ReaderFactory.getReader(uploadedFile).read(uploadedFile);
 
         progress.accept("Extracting keywords...\n");
-        List<String> keywords =
-                new KeywordExtractor()
-                        .extractKeywords(
-                                content,
-                                5
-                        );
+        List<String> keywords = new KeywordExtractor().extractKeywords(content, 5);
 
         if (keywords.isEmpty()) {
             progress.accept("  - No keywords extracted, using full content.\n");
-            keywords = new KeywordExtractor()
-                    .extractKeywords(
-                            content.substring(
-                                    0, Math.min(content.length(), 1000)
-                            ),
-                            5
-                    );
+            keywords = new KeywordExtractor().extractKeywords(
+                    content.substring(0, Math.min(content.length(), 1000)), 5
+            );
         }
 
         if (keywords.isEmpty()) {
@@ -54,108 +39,60 @@ public class OnlineRecommendationService {
         }
 
         progress.accept("Fetching online articles...\n");
-        List<RSSArticle> articles =
-                new CrawlerManager()
-                        .collectArticles(keywords, progress);
+        List<RSSArticle> articles = new CrawlerManager().collectArticles(keywords, progress);
 
         if (articles.isEmpty()) {
             throw new RuntimeException(
-                    "Could not fetch any online articles to compare against. " +
-                    "Check your internet connection."
+                    "Could not fetch any online articles to compare against. Check your internet connection."
             );
         }
 
         progress.accept("Computing similarities...\n");
-
-        List<String> corpus =
-                new ArrayList<>();
-
+        List<String> corpus = new ArrayList<>();
         corpus.add(content);
 
         for (RSSArticle article : articles) {
-            corpus.add(
-                    article.getTitle()
-                            + " "
-                            + article.getDescription()
-            );
+            corpus.add(article.getTitle() + " " + article.getDescription());
         }
 
         progress.accept("  - Building vocabulary...\n");
-        TFIDFVectorizer vectorizer =
-                new TFIDFVectorizer();
-
-        List<List<String>> tokenizedCorpus =
-                new ArrayList<>();
+        TFIDFVectorizer vectorizer = new TFIDFVectorizer();
+        List<List<String>> tokenizedCorpus = new ArrayList<>();
 
         for (String doc : corpus) {
-            tokenizedCorpus.add(
-                    vectorizer
-                            .preprocess(doc)
-            );
+            tokenizedCorpus.add(vectorizer.preprocess(doc));
         }
 
-        Map<String, Double> idfMap =
-                vectorizer.precomputeIDF(
-                        tokenizedCorpus
-                );
-
+        Map<String, Double> idfMap = vectorizer.precomputeIDF(tokenizedCorpus);
         progress.accept("  - Vectorizing documents...\n");
 
-        List<Map<String, Double>> allVectors =
-                new ArrayList<>();
-
-        List<String> allLabels =
-                new ArrayList<>();
-
-        allVectors.add(
-                vectorizer.normalize(
-                        vectorizer.buildVector(content, idfMap)
-                )
-        );
+        List<Map<String, Double>> allVectors = new ArrayList<>();
+        List<String> allLabels = new ArrayList<>();
+        allVectors.add(vectorizer.normalize(vectorizer.buildVector(content, idfMap)));
         allLabels.add("Base file");
 
         int total = articles.size();
 
         for (int i = 0; i < total; i++) {
             RSSArticle article = articles.get(i);
-            String articleText =
-                    article.getTitle() + article.getDescription();
-
-            allVectors.add(
-                    vectorizer.normalize(
-                            vectorizer.buildVector(articleText, idfMap)
-                    )
-            );
+            String articleText = article.getTitle() + article.getDescription();
+            allVectors.add(vectorizer.normalize(vectorizer.buildVector(articleText, idfMap)));
             allLabels.add(article.getTitle());
 
             if (i % 100 == 0 && i > 0) {
-                progress.accept(
-                        "  - Processed " + i + "/" + total + "\n"
-                );
+                progress.accept("  - Processed " + i + "/" + total + "\n");
             }
         }
 
         progress.accept("  - Building similarity matrix...\n");
-        SimilarityMatrix simMatrix =
-                new SimilarityMatrix(allVectors, allLabels);
-
-        List<Map.Entry<Integer, Double>> top =
-                simMatrix.topKWithScores(0, topK);
-
-        List<RecommendationResult> results =
-                new ArrayList<>();
+        SimilarityMatrix simMatrix = new SimilarityMatrix(allVectors, allLabels);
+        List<Map.Entry<Integer, Double>> top = simMatrix.topKWithScores(0, topK);
+        List<RecommendationResult> results = new ArrayList<>();
 
         for (Map.Entry<Integer, Double> entry : top) {
             int idx = entry.getKey();
             RSSArticle article = articles.get(idx - 1);
-            results.add(
-                    new RecommendationResult(
-                            article.getTitle(),
-                            article.getSource(),
-                            article.getLink(),
-                            entry.getValue()
-                    )
-            );
+            results.add(new RecommendationResult(article.getTitle(), article.getSource(), article.getLink(), entry.getValue()));
         }
 
         progress.accept("Done.\n");
