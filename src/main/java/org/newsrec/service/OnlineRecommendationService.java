@@ -17,6 +17,11 @@ public class OnlineRecommendationService {
 
     public List<RecommendationResult>
     recommend(File uploadedFile, Consumer<String> progress) {
+        return recommend(uploadedFile, progress, Integer.MAX_VALUE);
+    }
+
+    public List<RecommendationResult>
+    recommend(File uploadedFile, Consumer<String> progress, int topK) {
 
         progress.accept("Reading file...\n");
         String content =
@@ -94,64 +99,64 @@ public class OnlineRecommendationService {
                         tokenizedCorpus
                 );
 
-        CosineSimilarity similarity =
-                new CosineSimilarity();
+        progress.accept("  - Vectorizing documents...\n");
 
-        progress.accept("  - Vectorizing base file...\n");
-        Map<String,Double> baseVector =
-                vectorizer.buildVector(
-                        content,
-                        idfMap
+        List<Map<String, Double>> allVectors =
+                new ArrayList<>();
+
+        List<String> allLabels =
+                new ArrayList<>();
+
+        allVectors.add(
+                vectorizer.normalize(
+                        vectorizer.buildVector(content, idfMap)
+                )
+        );
+        allLabels.add("Base file");
+
+        int total = articles.size();
+
+        for (int i = 0; i < total; i++) {
+            RSSArticle article = articles.get(i);
+            String articleText =
+                    article.getTitle() + article.getDescription();
+
+            allVectors.add(
+                    vectorizer.normalize(
+                            vectorizer.buildVector(articleText, idfMap)
+                    )
+            );
+            allLabels.add(article.getTitle());
+
+            if (i % 100 == 0 && i > 0) {
+                progress.accept(
+                        "  - Processed " + i + "/" + total + "\n"
                 );
+            }
+        }
+
+        progress.accept("  - Building similarity matrix...\n");
+        SimilarityMatrix simMatrix =
+                new SimilarityMatrix(allVectors, allLabels);
+
+        List<Map.Entry<Integer, Double>> top =
+                simMatrix.topKWithScores(0, topK);
 
         List<RecommendationResult> results =
                 new ArrayList<>();
 
-        int total = articles.size();
-        int i = 0;
-
-        for (RSSArticle article : articles) {
-
-            String articleText =
-                    article.getTitle()
-                            + article.getDescription();
-
-            Map<String,Double> vector =
-                    vectorizer.buildVector(
-                            articleText,
-                            idfMap
-                    );
-
-            double score =
-                    similarity.calculate(
-                            baseVector,
-                            vector
-                    );
-
+        for (Map.Entry<Integer, Double> entry : top) {
+            int idx = entry.getKey();
+            RSSArticle article = articles.get(idx - 1);
             results.add(
                     new RecommendationResult(
                             article.getTitle(),
                             article.getSource(),
                             article.getLink(),
-                            score
+                            entry.getValue()
                     )
             );
-
-            i++;
-            if (i % 100 == 0) {
-                progress.accept(
-                        "  - Processed " + i
-                                + "/" + total + "\n"
-                    );
-            }
         }
-
-        results.sort(
-                Comparator.comparing(
-                        RecommendationResult
-                                ::getSimilarity
-                ).reversed()
-        );
 
         progress.accept("Done.\n");
         return results;

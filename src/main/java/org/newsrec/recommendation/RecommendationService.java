@@ -11,15 +11,17 @@ public class RecommendationService {
     private final TFIDFVectorizer vectorizer =
             new TFIDFVectorizer();
 
-    private final CosineSimilarity cosine =
-            new CosineSimilarity();
+    public List<RecommendationResult> compareFiles(
+            File baseFile,
+            List<File> compareFiles
+    ) {
+        return compareFiles(baseFile, compareFiles, Integer.MAX_VALUE);
+    }
 
     public List<RecommendationResult> compareFiles(
-
             File baseFile,
-
-            List<File> compareFiles
-
+            List<File> compareFiles,
+            int topK
     ) {
 
         try {
@@ -46,45 +48,59 @@ public class RecommendationService {
             }
 
             Map<String, Double> baseVector =
-                    vectorizer.buildVector(
-                            baseText,
-                            corpus
+                    vectorizer.normalize(
+                            vectorizer.buildVector(
+                                    baseText,
+                                    corpus
+                            )
                     );
+
+            List<Map<String, Double>> allVectors =
+                    new ArrayList<>();
+
+            allVectors.add(baseVector);
+
+            List<String> allLabels =
+                    new ArrayList<>();
+
+            allLabels.add(baseFile.getName());
+
+            for(File file : compareFiles){
+                String text = fileTexts.get(file);
+                Map<String, Double> vec =
+                        vectorizer.normalize(
+                                vectorizer.buildVector(
+                                        text,
+                                        corpus
+                                )
+                        );
+                allVectors.add(vec);
+                allLabels.add(file.getName());
+            }
+
+            SimilarityMatrix simMatrix =
+                    new SimilarityMatrix(
+                            allVectors,
+                            allLabels
+                    );
+
+            List<Map.Entry<Integer, Double>> top =
+                    simMatrix.topKWithScores(0, topK);
 
             List<RecommendationResult> results =
                     new ArrayList<>();
 
-            for(File file : compareFiles){
-
-                String text = fileTexts.get(file);
-
-                Map<String, Double> vector =
-                        vectorizer.buildVector(
-                                text,
-                                corpus
-                        );
-
-                double similarity =
-                        cosine.calculate(
-                                baseVector,
-                                vector
-                        );
-
+            for (Map.Entry<Integer, Double> entry : top) {
+                int idx = entry.getKey();
+                File file = compareFiles.get(idx - 1);
                 results.add(
                         new RecommendationResult(
                                 file.getName(),
                                 file.getAbsolutePath(),
-                                similarity
+                                entry.getValue()
                         )
                 );
             }
-
-            results.sort(
-                    Comparator.comparing(
-                            RecommendationResult
-                                    ::getSimilarity
-                    ).reversed()
-            );
 
             return results;
 

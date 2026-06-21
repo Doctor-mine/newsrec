@@ -46,6 +46,8 @@ public class Option1Panel extends JPanel {
 
     private JButton exportBtn;
 
+    private JSpinner topKSpinner;
+
     private List<RecommendationResult> lastResults;
 
     public Option1Panel(int userId) {
@@ -86,10 +88,17 @@ public class Option1Panel extends JPanel {
                 new JButton("Export CSV");
         exportBtn.setEnabled(false);
 
+        topKSpinner =
+                new JSpinner(new SpinnerNumberModel(20, 1, 999, 1));
+        ((JSpinner.DefaultEditor) topKSpinner.getEditor())
+                .getTextField().setColumns(3);
+
         top.add(baseBtn);
         top.add(removeBaseBtn);
         top.add(compareBtn);
         top.add(removeCompareBtn);
+        top.add(new JLabel("Top-K:"));
+        top.add(topKSpinner);
         top.add(analyzeBtn);
         top.add(exportBtn);
 
@@ -317,6 +326,8 @@ public class Option1Panel extends JPanel {
         resultsPanel.revalidate();
         resultsPanel.repaint();
 
+        int topK = (int) topKSpinner.getValue();
+
         SwingWorker<List<RecommendationResult>, Void> worker =
                 new SwingWorker<>() {
                     @Override
@@ -325,7 +336,8 @@ public class Option1Panel extends JPanel {
                                 new RecommendationService();
                         return service.compareFiles(
                                 baseFile,
-                                compareFiles
+                                compareFiles,
+                                topK
                         );
                     }
 

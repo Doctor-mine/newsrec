@@ -98,6 +98,22 @@ public class TFIDFVectorizer {
         return preprocessor.tokenize(text);
     }
 
+    public Map<String, Double> normalize(
+            Map<String, Double> vector
+    ) {
+        double norm = 0;
+        for (double value : vector.values()) {
+            norm += value * value;
+        }
+        norm = Math.sqrt(norm);
+        if (norm == 0) return vector;
+        Map<String, Double> normalized = new HashMap<>();
+        for (Map.Entry<String, Double> entry : vector.entrySet()) {
+            normalized.put(entry.getKey(), entry.getValue() / norm);
+        }
+        return normalized;
+    }
+
     private double tf(
             String term,
             List<String> terms

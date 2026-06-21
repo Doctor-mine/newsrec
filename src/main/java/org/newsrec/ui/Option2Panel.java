@@ -28,6 +28,8 @@ public class Option2Panel extends JPanel {
 
     private JButton exportBtn;
 
+    private JSpinner topKSpinner;
+
     private JProgressBar progressBar;
 
     private List<RecommendationResult> lastResults;
@@ -51,6 +53,13 @@ public class Option2Panel extends JPanel {
                 new JButton("Export CSV");
         exportBtn.setEnabled(false);
         topPanel.add(exportBtn);
+
+        topKSpinner =
+                new JSpinner(new SpinnerNumberModel(20, 1, 999, 1));
+        ((JSpinner.DefaultEditor) topKSpinner.getEditor())
+                .getTextField().setColumns(3);
+        topPanel.add(new JLabel("Top-K:"));
+        topPanel.add(topKSpinner);
 
         add(
                 topPanel,
@@ -112,6 +121,8 @@ public class Option2Panel extends JPanel {
                         "<html><body><p>Starting...</p>"
                 );
 
+                int topK = (int) topKSpinner.getValue();
+
                 SwingWorker<List<RecommendationResult>, String> worker =
                         new SwingWorker<>() {
                             @Override
@@ -121,7 +132,8 @@ public class Option2Panel extends JPanel {
                                 List<RecommendationResult> recs =
                                         service.recommend(
                                                 file,
-                                                msg -> publish(msg)
+                                                msg -> publish(msg),
+                                                topK
                                         );
                                 return recs;
                             }
