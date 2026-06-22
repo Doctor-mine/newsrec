@@ -124,6 +124,7 @@ public class Option2Panel extends JPanel {
                             }
                             html.append("</body></html>");
                             results.setText(html.toString());
+                            results.setCaretPosition(0);
 
                         } catch (Exception ex) {
                             results.setText("<html><body><p>Error: " + ex.getMessage() + "</p></body></html>");

@@ -87,6 +87,7 @@ public class Option3Panel extends JPanel {
                     }
                     html.append("</body></html>");
                     resultPane.setText(html.toString());
+                    resultPane.setCaretPosition(0);
 
                 } catch (Exception ex) {
                     resultPane.setText("<html><body><p>Error: " + ex.getMessage() + "</p></body></html>");
