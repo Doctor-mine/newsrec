@@ -30,12 +30,12 @@ public class Option2Panel extends JPanel {
     private JButton uploadBtn;
     private JButton exportBtn;
     private JButton previewBtn;
-    private JButton compareArticlesBtn;
     private JSpinner topKSpinner;
     private JProgressBar progressBar;
     private List<RecommendationResult> lastResults;
     private File currentFile;
     private List<RSSArticle> lastArticles;
+    private String originalResultsHtml;
 
     public Option2Panel(int userId) {
         this.userId = userId;
@@ -52,10 +52,6 @@ public class Option2Panel extends JPanel {
         exportBtn = new JButton("Export CSV");
         exportBtn.setEnabled(false);
         topPanel.add(exportBtn);
-
-        compareArticlesBtn = new JButton("Compare Articles");
-        compareArticlesBtn.setEnabled(false);
-        topPanel.add(compareArticlesBtn);
 
         topKSpinner = new JSpinner(new SpinnerNumberModel(20, 1, 999, 1));
         ((JSpinner.DefaultEditor) topKSpinner.getEditor()).getTextField().setColumns(3);
@@ -74,10 +70,16 @@ public class Option2Panel extends JPanel {
         results.setEditable(false);
         results.addHyperlinkListener(e -> {
             if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
-                String url = e.getURL().toString();
+                String url = e.getDescription();
+                if (url == null) return;
                 if (url.startsWith("detail://")) {
                     int idx = Integer.parseInt(url.substring("detail://".length()));
                     showArticleDetail(idx);
+                } else if (url.startsWith("base://")) {
+                    int idx = Integer.parseInt(url.substring("base://".length()));
+                    compareArticleAgainstOthers(idx);
+                } else if (url.startsWith("back://")) {
+                    showOriginalResults();
                 } else {
                     BrowserUtil.open(url);
                 }
@@ -87,7 +89,6 @@ public class Option2Panel extends JPanel {
 
         exportBtn.addActionListener(e -> exportCsv());
         previewBtn.addActionListener(e -> previewFile());
-        compareArticlesBtn.addActionListener(e -> compareArticles());
         setupDragAndDrop();
 
         uploadBtn.addActionListener(e -> {
@@ -138,7 +139,6 @@ public class Option2Panel extends JPanel {
                             lastArticles = service != null ? service.getLastArticles() : null;
                             saveHistory(recommendations);
                             exportBtn.setEnabled(!recommendations.isEmpty());
-                            compareArticlesBtn.setEnabled(lastArticles != null && lastArticles.size() >= 2);
 
                             StringBuilder html = new StringBuilder();
                             html.append("<html><body style='font-family:sans-serif; padding:8px;'>");
@@ -155,28 +155,29 @@ public class Option2Panel extends JPanel {
                                     else if (r.getSimilarity() >= 0.50) scoreColor = "#ffc107";
                                     else scoreColor = "#dc3545";
                                     String srcBg = sourceBadgeColor(r.getSource());
-                                    html.append("<div style='border:1px solid #ddd; border-radius:6px; padding:10px; margin:8px 0; background:#fff;'>"
-                                            + "<div style='display:flex; align-items:center; gap:10px;'>"
+                                    html.append("<div style='border:1px solid #ddd; border-radius:6px; padding:14px; margin:10px 0; background:#fff;'>"
+                                            + "<div style='display:flex; align-items:center; gap:14px;'>"
                                             + "<span style='font-weight:bold; color:#666;'>" + (i + 1) + ".</span>"
                                             + "<span style='font-weight:bold; font-size:14px;'>" + HtmlUtils.escape(r.getFileName()) + "</span>"
                                             + "<span style='background:" + srcBg + "; color:white; padding:2px 10px; border-radius:10px; font-size:11px;'>" + HtmlUtils.escape(r.getSource()) + "</span>"
                                             + "</div>"
-                                            + "<div style='margin-top:8px; display:flex; align-items:center; gap:8px;'>"
+                                            + "<div style='margin-top:14px; display:flex; align-items:center; gap:12px;'>"
                                             + "<div style='background:#eee; border-radius:4px; width:160px; height:18px; overflow:hidden;'>"
                                             + "<div style='background:" + scoreColor + "; width:" + pct + "%; height:18px; border-radius:4px; text-align:center; color:white; font-size:11px; line-height:18px;'>" + pct + "%</div>"
                                             + "</div>"
                                             + "<span style='font-size:12px; color:#888;'>similarity</span>"
                                             + "<span style='font-size:11px; color:#aaa;'>(" + String.format("%.4f", r.getSimilarity()) + ")</span>"
                                             + "</div>"
-                                            + "<div style='margin-top:6px; display:flex; gap:12px;'>"
+                                            + "<div style='margin-top:10px; display:flex; gap:16px;'>"
                                             + "<a href='" + HtmlUtils.escape(r.getLink()) + "' style='font-size:12px; color:#0366d6;'>Open Article</a>"
-                                            + "<a href='detail://" + i + "' style='font-size:12px; color:#6c757d;'>Details</a>"
+                                            + "<a href='base://" + i + "' style='font-size:12px; color:#e67e22;'>Use as base</a>"
                                             + "</div>"
                                             + "</div>");
                                 }
                             }
                             html.append("</body></html>");
-                            results.setText(html.toString());
+                            originalResultsHtml = html.toString();
+                            results.setText(originalResultsHtml);
                             results.setCaretPosition(0);
 
                         } catch (Exception ex) {
@@ -234,19 +235,35 @@ public class Option2Panel extends JPanel {
         JOptionPane.showMessageDialog(this, panel, "Article Details", JOptionPane.PLAIN_MESSAGE);
     }
 
-    private void compareArticles() {
-        if (lastArticles == null || lastArticles.size() < 2) {
-            JOptionPane.showMessageDialog(this, "Need at least 2 articles to compare.");
+    private void compareArticleAgainstOthers(int resultIndex) {
+        if (lastResults == null || resultIndex < 0 || resultIndex >= lastResults.size() || lastArticles == null || lastArticles.size() < 2) {
             return;
         }
 
+        String targetTitle = lastResults.get(resultIndex).getFileName();
+        RSSArticle baseArticle = null;
+        for (RSSArticle a : lastArticles) {
+            if (a.getTitle().equals(targetTitle)) {
+                baseArticle = a;
+                break;
+            }
+        }
+        if (baseArticle == null) return;
+
         progressBar.setVisible(true);
-        compareArticlesBtn.setEnabled(false);
+        uploadBtn.setEnabled(false);
+
+        String baseText = baseArticle.getTitle() + " " + baseArticle.getDescription();
+
+        String finalBaseTitle = baseArticle.getTitle();
+        String finalBaseText = baseText;
+        String finalTargetTitle = targetTitle;
 
         SwingWorker<Void, Void> worker = new SwingWorker<>() {
             @Override
             protected Void doInBackground() {
                 List<String> corpus = new ArrayList<>();
+                corpus.add(finalBaseText);
                 for (RSSArticle a : lastArticles) {
                     corpus.add(a.getTitle() + " " + a.getDescription());
                 }
@@ -256,48 +273,57 @@ public class Option2Panel extends JPanel {
                 for (String doc : corpus) {
                     tokenizedCorpus.add(vectorizer.preprocess(doc));
                 }
-                List<Map<String, Double>> vectors = new ArrayList<>();
-                List<String> labels = new ArrayList<>();
                 Map<String, Double> idfMap = vectorizer.precomputeIDF(tokenizedCorpus);
 
-                for (int i = 0; i < lastArticles.size(); i++) {
-                    RSSArticle a = lastArticles.get(i);
+                List<Map<String, Double>> vectors = new ArrayList<>();
+                List<String> labels = new ArrayList<>();
+                vectors.add(vectorizer.normalize(vectorizer.buildVector(finalBaseText, idfMap)));
+                labels.add("Base: " + finalBaseTitle);
+
+                List<RSSArticle> others = new ArrayList<>();
+                for (RSSArticle a : lastArticles) {
+                    if (a.getTitle().equals(finalTargetTitle)) continue;
                     String text = a.getTitle() + " " + a.getDescription();
                     vectors.add(vectorizer.normalize(vectorizer.buildVector(text, idfMap)));
                     labels.add(a.getTitle());
+                    others.add(a);
                 }
 
                 SimilarityMatrix simMatrix = new SimilarityMatrix(vectors, labels);
-                List<Map.Entry<Double, String>> pairs = new ArrayList<>();
-
-                for (int i = 0; i < lastArticles.size(); i++) {
-                    for (int j = i + 1; j < lastArticles.size(); j++) {
-                        pairs.add(Map.entry(simMatrix.get(i, j), (i + 1) + ". " + labels.get(i) + "  ↔  " + (j + 1) + ". " + labels.get(j)));
-                    }
-                }
-
-                pairs.sort(Map.Entry.<Double, String>comparingByKey().reversed());
-                int showCount = Math.min(20, pairs.size());
+                List<Map.Entry<Integer, Double>> top = simMatrix.topKWithScores(0, others.size());
 
                 StringBuilder html = new StringBuilder();
                 html.append("<html><body style='font-family:sans-serif; padding:8px;'>");
-                html.append("<h3>Article-to-Article Comparison (Top " + showCount + " pairs)</h3>");
-                html.append("<p><i>Shows which crawled articles are most similar to each other.</i></p>");
+                html.append("<h3>Comparing: " + HtmlUtils.escape(finalBaseTitle) + "</h3>");
+                html.append("<p><i>Showing how similar other articles are to this one.</i> <a href='back://' style='color:#0366d6;'>← Back to results</a></p>");
+                html.append("<p><i>Score guide: 0.85+ = very similar, 0.50–0.85 = moderately similar, below 0.50 = barely related</i></p>");
 
-                for (int k = 0; k < showCount; k++) {
-                    var pair = pairs.get(k);
-                    int pct = (int) Math.round(pair.getKey() * 100);
-                    String scoreColor = pair.getKey() >= 0.85 ? "#28a745" : pair.getKey() >= 0.50 ? "#ffc107" : "#dc3545";
-                    html.append("<div style='border:1px solid #ddd; border-radius:6px; padding:8px; margin:6px 0; background:#fff;'>"
-                            + "<div style='display:flex; align-items:center; gap:8px;'>"
-                            + "<span style='font-weight:bold; color:#666;'>" + (k + 1) + ".</span>"
-                            + "<span style='font-size:13px;'>" + HtmlUtils.escape(pair.getValue()) + "</span>"
-                            + "</div>"
-                            + "<div style='margin-top:6px;'>"
-                            + "<div style='background:#eee; border-radius:4px; width:160px; height:16px; overflow:hidden;'>"
-                            + "<div style='background:" + scoreColor + "; width:" + pct + "%; height:16px; border-radius:4px; text-align:center; color:white; font-size:10px; line-height:16px;'>" + pct + "%</div>"
-                            + "</div>"
-                            + "</div></div>");
+                if (top.isEmpty()) {
+                    html.append("<p style='color:#888;'>No comparisons found.</p>");
+                } else {
+                    for (Map.Entry<Integer, Double> entry : top) {
+                        int idx = entry.getKey();
+                        if (idx - 1 >= others.size()) continue;
+                        RSSArticle article = others.get(idx - 1);
+                        int pct = (int) Math.round(entry.getValue() * 100);
+                        String scoreColor = entry.getValue() >= 0.85 ? "#28a745" : entry.getValue() >= 0.50 ? "#ffc107" : "#dc3545";
+                        String srcBg = sourceBadgeColor(article.getSource());
+                        html.append("<div style='border:1px solid #ddd; border-radius:6px; padding:10px; margin:8px 0; background:#fff;'>"
+                                + "<div style='display:flex; align-items:center; gap:10px;'>"
+                                + "<span style='font-weight:bold; color:#666;'>" + (idx) + ".</span>"
+                                + "<span style='font-weight:bold; font-size:14px;'>" + HtmlUtils.escape(article.getTitle()) + "</span>"
+                                + "<span style='background:" + srcBg + "; color:white; padding:2px 10px; border-radius:10px; font-size:11px;'>" + HtmlUtils.escape(article.getSource()) + "</span>"
+                                + "</div>"
+                                + "<div style='margin-top:8px; display:flex; align-items:center; gap:8px;'>"
+                                + "<div style='background:#eee; border-radius:4px; width:160px; height:18px; overflow:hidden;'>"
+                                + "<div style='background:" + scoreColor + "; width:" + pct + "%; height:18px; border-radius:4px; text-align:center; color:white; font-size:11px; line-height:18px;'>" + pct + "%</div>"
+                                + "</div>"
+                                + "<span style='font-size:12px; color:#888;'>similarity</span>"
+                                + "<span style='font-size:11px; color:#aaa;'>(" + String.format("%.4f", entry.getValue()) + ")</span>"
+                                + "</div>"
+                                + "<div style='margin-top:6px;'><a href='" + HtmlUtils.escape(article.getLink()) + "' style='font-size:12px; color:#0366d6;'>Open Article</a></div>"
+                                + "</div>");
+                    }
                 }
 
                 html.append("</body></html>");
@@ -314,11 +340,18 @@ public class Option2Panel extends JPanel {
             @Override
             protected void done() {
                 progressBar.setVisible(false);
-                compareArticlesBtn.setEnabled(true);
+                uploadBtn.setEnabled(true);
             }
         };
 
         worker.execute();
+    }
+
+    private void showOriginalResults() {
+        if (originalResultsHtml != null) {
+            results.setText(originalResultsHtml);
+            results.setCaretPosition(0);
+        }
     }
 
     private void setupDragAndDrop() {

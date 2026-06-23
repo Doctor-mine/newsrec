@@ -28,7 +28,7 @@ public class HistoryPanel extends JPanel {
         title.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         add(title, BorderLayout.NORTH);
 
-        tableModel = new DefaultTableModel(new String[]{"#", "Base File", "Compared File", "Similarity"}, 0) {
+        tableModel = new DefaultTableModel(new String[]{"NO.", "Base File", "Compared File", "Similarity"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
