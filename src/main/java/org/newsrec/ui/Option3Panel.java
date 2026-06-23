@@ -60,7 +60,7 @@ public class Option3Panel extends JPanel {
 
         searchBtn.setEnabled(false);
         progressBar.setVisible(true);
-        resultPane.setText("<html><body><p><b>Searching for: " + HtmlUtils.escape(topic) + "</b></p>");
+        resultPane.setText("<html><body style='font-family:sans-serif; padding:8px;'><p><b>Searching for: " + HtmlUtils.escape(topic) + "</b></p>");
 
         SwingWorker<List<RSSArticle>, Void> worker = new SwingWorker<>() {
             @Override
@@ -73,17 +73,23 @@ public class Option3Panel extends JPanel {
                 try {
                     List<RSSArticle> articles = get();
                     StringBuilder html = new StringBuilder();
-                    html.append("<html><body>");
+                    html.append("<html><body style='font-family:sans-serif; padding:8px;'>");
 
                     if (articles.isEmpty()) {
-                        html.append("<p>No articles found.</p>");
+                        html.append("<p style='color:#888;'>No articles found.</p>");
                     } else {
+                        html.append("<p><i>Results are sorted by crawl order (keyword substring match, no similarity score).</i></p>");
                         for (int i = 0; i < articles.size(); i++) {
                             RSSArticle article = articles.get(i);
-                            html.append("<p><b>" + (i + 1) + ". " + HtmlUtils.escape(article.getTitle()) + "</b><br>"
-                                    + "<i>Source: " + HtmlUtils.escape(article.getSource()) + "</i><br>"
-                                    + "<a href='" + HtmlUtils.escape(article.getLink()) + "'>"
-                                    + HtmlUtils.escape(article.getLink()) + "</a></p><hr>");
+                            String srcBg = sourceBadgeColor(article.getSource());
+                            html.append("<div style='border:1px solid #ddd; border-radius:6px; padding:10px; margin:8px 0; background:#fff;'>"
+                                    + "<div style='display:flex; align-items:center; gap:10px;'>"
+                                    + "<span style='font-weight:bold; color:#666;'>" + (i + 1) + ".</span>"
+                                    + "<span style='font-weight:bold; font-size:14px;'>" + HtmlUtils.escape(article.getTitle()) + "</span>"
+                                    + "<span style='background:" + srcBg + "; color:white; padding:2px 10px; border-radius:10px; font-size:11px;'>" + HtmlUtils.escape(article.getSource()) + "</span>"
+                                    + "</div>"
+                                    + "<div style='margin-top:6px;'><a href='" + HtmlUtils.escape(article.getLink()) + "' style='font-size:12px; color:#0366d6;'>" + HtmlUtils.escape(article.getLink()) + "</a></div>"
+                                    + "</div>");
                         }
                     }
                     html.append("</body></html>");
@@ -91,7 +97,7 @@ public class Option3Panel extends JPanel {
                     resultPane.setCaretPosition(0);
 
                 } catch (Exception ex) {
-                    resultPane.setText("<html><body><p>Error: " + ex.getMessage() + "</p></body></html>");
+                    resultPane.setText("<html><body style='font-family:sans-serif; padding:8px;'><p style='color:#dc3545;'>Error: " + ex.getMessage() + "</p></body></html>");
                 } finally {
                     searchBtn.setEnabled(true);
                     progressBar.setVisible(false);
@@ -100,5 +106,13 @@ public class Option3Panel extends JPanel {
         };
 
         worker.execute();
+    }
+
+    private String sourceBadgeColor(String source) {
+        if ("Arxiv".equalsIgnoreCase(source)) return "#6f42c1";
+        if ("ScienceDaily".equalsIgnoreCase(source)) return "#007bff";
+        if ("Wikipedia".equalsIgnoreCase(source)) return "#28a745";
+        if ("SemanticScholar".equalsIgnoreCase(source)) return "#fd7e14";
+        return "#6c757d";
     }
 }

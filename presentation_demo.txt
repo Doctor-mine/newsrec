@@ -1,0 +1,196 @@
+NEWS RECOMMENDATION SYSTEM — PRESENTATION DEMO
+================================================
+
+A Java Swing desktop app that finds similar documents using
+TF-IDF vectorization + cosine similarity.
+Upload a PDF/DOCX — it tells you which articles match and by how much.
+
+================================================
+THE CORE ENGINE (the main event)
+================================================
+
+This is the heart of the project. Everything else is just UI wrapping it.
+
+The Pipeline:
+
+  1.  User uploads a PDF or DOCX file.
+
+  2.  ReaderFactory picks PDFReader (PDFBox) or DOCXReader (POI).
+      It extracts all text from the file.
+
+  3.  TextPreprocessor.tokenize() cleans the text:
+      - Lowercases everything
+      - Strips punctuation and numbers
+      - Removes 39 English stop words ("the", "and", "for"…)
+      - Returns a clean list of words
+
+  4.  TFIDFVectorizer.buildVector() computes a vector for
+      each document:
+      - TF = term frequency (how often a word appears in the doc)
+      - IDF = inverse document frequency (how rare a word is
+             across all documents — rare words = more weight)
+      - vector[word] = TF(word) × IDF(word)
+
+  5.  TFIDFVectorizer.normalize() scales every vector so its
+      Euclidean length = 1.0. This is the trick:
+      - After normalization, dot product = cosine similarity
+      - No need to compute cosine manually
+
+  6.  SimilarityMatrix builds an N×N matrix:
+      - matrix[i][j] = dot product of vector[i] and vector[j]
+      - Because vectors are L2-normalized, this IS cosine similarity
+      - Diagonal = 1.0 (a document matches itself perfectly)
+
+  7.  topKWithScores() sorts all results for the base document
+      and returns the top K matches with their similarity scores.
+
+Result: a ranked list of similar documents with scores between 0 and 1.
+
+================================================
+WHY THIS IS THE NOTABLE FEATURE
+================================================
+
+- No external API needed. The TF-IDF engine runs purely in Java
+  on the user's machine. No cloud, no network calls, no costs.
+
+- The L2-norm optimization is the key insight:
+  instead of computing cosine similarity from scratch for
+  every pair (which is expensive), we normalize once and
+  use simple dot products. The math is identical but the
+  performance is much better.
+
+- The scoring is interpretable. A score of 0.85 means
+  "very similar." A score of 0.12 means "barely related."
+  The user immediately understands the output.
+
+- Works on any text. PDF, DOCX, RSS feeds, web pages —
+  the engine doesn't care about the source. It only needs
+  words.
+
+================================================
+THREE DEMO MODES (brief)
+================================================
+
+TAB 1 — LOCAL COMPARISON
+  Select one "base" file + multiple "compare" files.
+  The engine compares all local files against each other.
+  Results show: filename | score | "Open in Explorer" button.
+  Use case: "I have 10 research papers. Which ones are most
+  similar to this one?"
+
+TAB 2 — ONLINE COMPARISON
+  Upload one file. The system:
+    1. Reads the file
+    2. KeywordExtractor picks the top 5 most frequent words
+    3. CrawlerManager fetches articles from 4 sources in
+       parallel:
+       - arXiv (RSS feed)
+       - ScienceDaily (RSS feed)
+       - Wikipedia (keyword search via JSoup)
+       - Semantic Scholar (REST API)
+    4. TF-IDF compares your file against all fetched articles
+    5. Ranks them by similarity score
+  Results show: title | source | score | clickable link.
+  Use case: "Here's my draft paper. Find me real articles
+  that are related to it."
+
+TAB 3 — TOPIC SEARCH
+  Type a keyword. The system:
+    1. Crawls all 4 sources
+    2. Filters where title or description contains the keyword
+       (substring match — no TF-IDF here)
+  Results show: title | source | clickable link.
+  Use case: "Show me everything about 'AGI' across all sources."
+
+================================================
+LIVE DEMO SCRIPT
+================================================
+
+STEP 1 — LAUNCH
+  Run: mvn exec:java -Dexec.mainClass="org.newsrec.Main"
+  Login screen appears on the EDT with FlatLaf styling.
+  Type username "admin" + password "admin" → click Login.
+
+STEP 2 — TAB 1 (LOCAL)
+  - Click "Upload Base File" → pick an AGI paper PDF
+  - Click "Add Compare Files" → pick 3-5 other PDFs
+  - Set Top-K spinner to 5
+  - Click "Analyze"
+  - Watch: progress bar appears, results populate below
+  - Result: each row shows "1. filename | Score: 0.8721"
+  - Click "Open in Explorer" → opens file location
+  - Click "Export CSV" → saves results to a spreadsheet
+
+STEP 3 — TAB 2 (ONLINE)
+  - Click "Upload File" → pick the same AGI paper PDF
+  - Watch progress stream: "Fetching Arxiv… Fetching ScienceDaily…
+    Fetching Wikipedia… Fetching Semantic Scholar…"
+  - After 10-20 seconds, results appear
+  - Result: "1. Paper Title | Source: Arxiv | Score: 0.4532"
+  - Click a link → opens the article in the browser
+  - Scores are lower than Tab 1 because web articles cover
+    broader topics than controlled local files
+
+STEP 4 — TAB 3 (TOPIC)
+  - Type "artificial general intelligence" in the search box
+  - Click "Search"
+  - Results show articles from all 4 sources that mention the topic
+  - Note: no scores here — this is pure keyword matching
+
+================================================
+WHY AGI PAPERS ARE GREAT FOR THIS DEMO
+================================================
+
+- AGI vocabulary is rich and distinctive:
+  "alignment," "superintelligence," "capability," "agent,"
+  "safety," "scaling," "emergence"
+  → TF-IDF picks up on these = meaningful similarity scores
+
+- Covers all four sources:
+  - arXiv: has AGI theory papers
+  - ScienceDaily: covers AGI news
+  - Wikipedia: dense AGI encyclopedia pages
+  - Semantic Scholar: academic AGI papers
+
+- The scoring tells a story:
+  - Two AGI papers → score 0.7-0.9 (very similar)
+  - AGI paper vs. a cooking recipe → score ~0.0 (not similar)
+  → Instantly shows the system is working correctly
+
+================================================
+SYSTEM ARCHITECTURE (one slide)
+================================================
+
+  Main.java
+   ├── LoginServer (port 9999, daemon thread)
+   ├── FlatLaf LookAndFeel
+   └── LoginFrame → DashboardFrame
+                         ├── Option1Panel (local)
+                         ├── Option2Panel (online)
+                         └── Option3Panel (topic)
+
+  The pipeline (the important part):
+  File → ReaderFactory → TextPreprocessor → TFIDFVectorizer
+  → SimilarityMatrix → topKWithScores → User sees ranked results
+
+  Crawling (for Tab 2 and 3):
+  CrawlerManager orchestrates 4 sources via CompletableFuture
+   ├── ArxivCrawler (RSS)
+   ├── ScienceDailyCrawler (RSS)
+   ├── WikipediaCrawler (JSoup)
+   └── SemanticScholarCrawler (REST API / Gson)
+
+================================================
+KEY TAKEAWAYS
+================================================
+
+- The TF-IDF + cosine similarity engine is the core feature
+- It's purely local, needs no API keys, and runs fast
+- The L2-normalization trick makes it efficient
+- Three demo modes show different use cases
+- AGI papers make a compelling demo because the vocabulary
+  is distinctive and similarity scores are meaningful
+- System is extensible: adding a new source (like Semantic
+  Scholar) takes ~1 hour
+
+================================================

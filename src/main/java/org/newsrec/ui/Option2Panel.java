@@ -74,7 +74,7 @@ public class Option2Panel extends JPanel {
                 File file = fileChooser.getSelectedFile();
                 uploadBtn.setEnabled(false);
                 progressBar.setVisible(true);
-                results.setText("<html><body><p>Starting...</p>");
+                results.setText("<html><body style='font-family:sans-serif; padding:8px;'><p>Starting...</p>");
 
                 int topK = (int) topKSpinner.getValue();
 
@@ -96,7 +96,7 @@ public class Option2Panel extends JPanel {
                         if (bodyEnd >= 0) {
                             results.setText(current.substring(0, bodyEnd) + sb.toString() + "</body></html>");
                         } else {
-                            results.setText("<html><body>" + sb.toString() + "</body></html>");
+                            results.setText("<html><body style='font-family:sans-serif; padding:8px;'>" + sb.toString() + "</body></html>");
                         }
                     }
 
@@ -109,18 +109,35 @@ public class Option2Panel extends JPanel {
                             exportBtn.setEnabled(!recommendations.isEmpty());
 
                             StringBuilder html = new StringBuilder();
-                            html.append("<html><body>");
+                            html.append("<html><body style='font-family:sans-serif; padding:8px;'>");
                             if (recommendations.isEmpty()) {
-                                html.append("<p>No recommendations found.</p>");
+                                html.append("<p style='color:#888;'>No recommendations found.</p>");
                             } else {
                                 html.append("<h3>Recommendations</h3>");
+                                html.append("<p><i>Score guide: 0.85+ = very similar, 0.50–0.85 = moderately similar, below 0.50 = barely related</i></p>");
                                 for (int i = 0; i < recommendations.size(); i++) {
                                     RecommendationResult r = recommendations.get(i);
-                                    html.append("<p><b>" + (i + 1) + ". " + HtmlUtils.escape(r.getFileName()) + "</b><br>"
-                                            + "<i>Source: " + HtmlUtils.escape(r.getSource()) + "</i><br>"
-                                            + "Score: " + String.format("%.4f", r.getSimilarity()) + "<br>"
-                                            + "<a href='" + HtmlUtils.escape(r.getLink()) + "'>"
-                                            + HtmlUtils.escape(r.getLink()) + "</a></p><hr>");
+                                    int pct = (int) Math.round(r.getSimilarity() * 100);
+                                    String scoreColor;
+                                    if (r.getSimilarity() >= 0.85) scoreColor = "#28a745";
+                                    else if (r.getSimilarity() >= 0.50) scoreColor = "#ffc107";
+                                    else scoreColor = "#dc3545";
+                                    String srcBg = sourceBadgeColor(r.getSource());
+                                    html.append("<div style='border:1px solid #ddd; border-radius:6px; padding:10px; margin:8px 0; background:#fff;'>"
+                                            + "<div style='display:flex; align-items:center; gap:10px;'>"
+                                            + "<span style='font-weight:bold; color:#666;'>" + (i + 1) + ".</span>"
+                                            + "<span style='font-weight:bold; font-size:14px;'>" + HtmlUtils.escape(r.getFileName()) + "</span>"
+                                            + "<span style='background:" + srcBg + "; color:white; padding:2px 10px; border-radius:10px; font-size:11px;'>" + HtmlUtils.escape(r.getSource()) + "</span>"
+                                            + "</div>"
+                                            + "<div style='margin-top:8px; display:flex; align-items:center; gap:8px;'>"
+                                            + "<div style='background:#eee; border-radius:4px; width:160px; height:18px; overflow:hidden;'>"
+                                            + "<div style='background:" + scoreColor + "; width:" + pct + "%; height:18px; border-radius:4px; text-align:center; color:white; font-size:11px; line-height:18px;'>" + pct + "%</div>"
+                                            + "</div>"
+                                            + "<span style='font-size:12px; color:#888;'>similarity</span>"
+                                            + "<span style='font-size:11px; color:#aaa;'>(" + String.format("%.4f", r.getSimilarity()) + ")</span>"
+                                            + "</div>"
+                                            + "<div style='margin-top:6px;'><a href='" + HtmlUtils.escape(r.getLink()) + "' style='font-size:12px; color:#0366d6;'>" + HtmlUtils.escape(r.getLink()) + "</a></div>"
+                                            + "</div>");
                                 }
                             }
                             html.append("</body></html>");
@@ -128,7 +145,7 @@ public class Option2Panel extends JPanel {
                             results.setCaretPosition(0);
 
                         } catch (Exception ex) {
-                            results.setText("<html><body><p>Error: " + ex.getMessage() + "</p></body></html>");
+                            results.setText("<html><body style='font-family:sans-serif; padding:8px;'><p style='color:#dc3545;'>Error: " + ex.getMessage() + "</p></body></html>");
                             JOptionPane.showMessageDialog(Option2Panel.this, "Error processing file: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
                         } finally {
                             uploadBtn.setEnabled(true);
@@ -158,5 +175,13 @@ public class Option2Panel extends JPanel {
         for (RecommendationResult r : results) {
             historyDAO.save(userId, baseName, r.getFileName(), r.getSimilarity());
         }
+    }
+
+    private String sourceBadgeColor(String source) {
+        if ("Arxiv".equalsIgnoreCase(source)) return "#6f42c1";
+        if ("ScienceDaily".equalsIgnoreCase(source)) return "#007bff";
+        if ("Wikipedia".equalsIgnoreCase(source)) return "#28a745";
+        if ("SemanticScholar".equalsIgnoreCase(source)) return "#fd7e14";
+        return "#6c757d";
     }
 }

@@ -208,15 +208,50 @@ public class Option1Panel extends JPanel {
     private void displayResults(List<RecommendationResult> results) {
         resultsPanel.removeAll();
 
+        JLabel legend = new JLabel("Score guide: 0.85+ = very similar, 0.50–0.85 = moderately similar, below 0.50 = barely related");
+        legend.setFont(legend.getFont().deriveFont(Font.ITALIC));
+        legend.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
+        resultsPanel.add(legend);
+
         for (int i = 0; i < results.size(); i++) {
             RecommendationResult r = results.get(i);
-            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            row.add(new JLabel((i + 1) + ". " + r.getFileName()));
-            row.add(Box.createHorizontalStrut(20));
-            row.add(new JLabel(String.format("Score: %.4f", r.getSimilarity())));
-            row.add(Box.createHorizontalStrut(20));
+            JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            row.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createMatteBorder(0, 0, 1, 0, Color.LIGHT_GRAY),
+                    BorderFactory.createEmptyBorder(5, 5, 5, 5)
+            ));
 
-            JButton openBtn = new JButton("Open in Explorer");
+            JLabel numLabel = new JLabel(String.valueOf(i + 1) + ".");
+            numLabel.setFont(numLabel.getFont().deriveFont(Font.BOLD, 14f));
+            numLabel.setPreferredSize(new Dimension(30, 20));
+            row.add(numLabel);
+
+            JLabel nameLabel = new JLabel(r.getFileName());
+            nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD));
+            nameLabel.setPreferredSize(new Dimension(450, 20));
+            row.add(nameLabel);
+
+            int pct = (int) Math.round(r.getSimilarity() * 100);
+            JProgressBar scoreBar = new JProgressBar(0, 100);
+            scoreBar.setValue(pct);
+            scoreBar.setStringPainted(true);
+            scoreBar.setString(pct + "%");
+            scoreBar.setPreferredSize(new Dimension(120, 22));
+            if (r.getSimilarity() >= 0.85) {
+                scoreBar.setForeground(new Color(40, 167, 69));
+            } else if (r.getSimilarity() >= 0.50) {
+                scoreBar.setForeground(new Color(255, 193, 7));
+            } else {
+                scoreBar.setForeground(new Color(220, 53, 69));
+            }
+            row.add(scoreBar);
+
+            JLabel decimalScore = new JLabel(String.format("%.4f", r.getSimilarity()));
+            decimalScore.setFont(decimalScore.getFont().deriveFont(Font.PLAIN, 11f));
+            decimalScore.setForeground(Color.GRAY);
+            row.add(decimalScore);
+
+            JButton openBtn = new JButton("Open");
             String filePath = r.getFilePath();
             openBtn.addActionListener(e -> openInExplorer(filePath));
             row.add(openBtn);
@@ -224,7 +259,9 @@ public class Option1Panel extends JPanel {
         }
 
         if (results.isEmpty()) {
-            resultsPanel.add(new JLabel("No results found."));
+            JLabel empty = new JLabel("No results found.");
+            empty.setBorder(BorderFactory.createEmptyBorder(20, 5, 5, 5));
+            resultsPanel.add(empty);
         }
 
         resultsPanel.revalidate();
