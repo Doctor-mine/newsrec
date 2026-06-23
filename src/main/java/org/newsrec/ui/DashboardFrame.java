@@ -17,6 +17,7 @@ public class DashboardFrame extends JFrame {
         tabs.add("Local Comparison", new Option1Panel(userId));
         tabs.add("Online Comparison", new Option2Panel(userId));
         tabs.add("Topic Search", new Option3Panel());
+        tabs.add("History", new HistoryPanel(userId));
         add(tabs);
     }
 }

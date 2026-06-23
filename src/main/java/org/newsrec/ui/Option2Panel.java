@@ -1,7 +1,9 @@
 package org.newsrec.ui;
 
+import org.newsrec.crawler.RSSArticle;
 import org.newsrec.dao.HistoryDAO;
 import org.newsrec.model.RecommendationResult;
+import org.newsrec.recommendation.*;
 import org.newsrec.service.OnlineRecommendationService;
 import org.newsrec.util.BrowserUtil;
 import org.newsrec.util.CsvExporter;
@@ -12,8 +14,11 @@ import org.apache.logging.log4j.Logger;
 import javax.swing.*;
 import javax.swing.event.HyperlinkEvent;
 import java.awt.*;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.dnd.*;
 import java.io.File;
 import java.util.List;
+import java.util.*;
 
 public class Option2Panel extends JPanel {
 
@@ -24,9 +29,13 @@ public class Option2Panel extends JPanel {
     private JEditorPane results;
     private JButton uploadBtn;
     private JButton exportBtn;
+    private JButton previewBtn;
+    private JButton compareArticlesBtn;
     private JSpinner topKSpinner;
     private JProgressBar progressBar;
     private List<RecommendationResult> lastResults;
+    private File currentFile;
+    private List<RSSArticle> lastArticles;
 
     public Option2Panel(int userId) {
         this.userId = userId;
@@ -36,9 +45,17 @@ public class Option2Panel extends JPanel {
         uploadBtn = new JButton("Upload File");
         topPanel.add(uploadBtn);
 
+        previewBtn = new JButton("Preview File");
+        previewBtn.setEnabled(false);
+        topPanel.add(previewBtn);
+
         exportBtn = new JButton("Export CSV");
         exportBtn.setEnabled(false);
         topPanel.add(exportBtn);
+
+        compareArticlesBtn = new JButton("Compare Articles");
+        compareArticlesBtn.setEnabled(false);
+        topPanel.add(compareArticlesBtn);
 
         topKSpinner = new JSpinner(new SpinnerNumberModel(20, 1, 999, 1));
         ((JSpinner.DefaultEditor) topKSpinner.getEditor()).getTextField().setColumns(3);
@@ -57,12 +74,21 @@ public class Option2Panel extends JPanel {
         results.setEditable(false);
         results.addHyperlinkListener(e -> {
             if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
-                BrowserUtil.open(e.getURL().toString());
+                String url = e.getURL().toString();
+                if (url.startsWith("detail://")) {
+                    int idx = Integer.parseInt(url.substring("detail://".length()));
+                    showArticleDetail(idx);
+                } else {
+                    BrowserUtil.open(url);
+                }
             }
         });
         add(new JScrollPane(results), BorderLayout.CENTER);
 
         exportBtn.addActionListener(e -> exportCsv());
+        previewBtn.addActionListener(e -> previewFile());
+        compareArticlesBtn.addActionListener(e -> compareArticles());
+        setupDragAndDrop();
 
         uploadBtn.addActionListener(e -> {
             JFileChooser fileChooser = new JFileChooser();
@@ -71,17 +97,21 @@ public class Option2Panel extends JPanel {
             int result = fileChooser.showOpenDialog(this);
 
             if (result == JFileChooser.APPROVE_OPTION) {
-                File file = fileChooser.getSelectedFile();
+                currentFile = fileChooser.getSelectedFile();
+                File file = currentFile;
                 uploadBtn.setEnabled(false);
+                previewBtn.setEnabled(true);
                 progressBar.setVisible(true);
                 results.setText("<html><body style='font-family:sans-serif; padding:8px;'><p>Starting...</p>");
 
                 int topK = (int) topKSpinner.getValue();
 
                 SwingWorker<List<RecommendationResult>, String> worker = new SwingWorker<>() {
+                    private OnlineRecommendationService service;
+
                     @Override
                     protected List<RecommendationResult> doInBackground() {
-                        OnlineRecommendationService service = new OnlineRecommendationService();
+                        service = new OnlineRecommendationService();
                         return service.recommend(file, msg -> publish(msg), topK);
                     }
 
@@ -105,8 +135,10 @@ public class Option2Panel extends JPanel {
                         try {
                             List<RecommendationResult> recommendations = get();
                             lastResults = recommendations;
+                            lastArticles = service != null ? service.getLastArticles() : null;
                             saveHistory(recommendations);
                             exportBtn.setEnabled(!recommendations.isEmpty());
+                            compareArticlesBtn.setEnabled(lastArticles != null && lastArticles.size() >= 2);
 
                             StringBuilder html = new StringBuilder();
                             html.append("<html><body style='font-family:sans-serif; padding:8px;'>");
@@ -136,7 +168,10 @@ public class Option2Panel extends JPanel {
                                             + "<span style='font-size:12px; color:#888;'>similarity</span>"
                                             + "<span style='font-size:11px; color:#aaa;'>(" + String.format("%.4f", r.getSimilarity()) + ")</span>"
                                             + "</div>"
-                                            + "<div style='margin-top:6px;'><a href='" + HtmlUtils.escape(r.getLink()) + "' style='font-size:12px; color:#0366d6;'>" + HtmlUtils.escape(r.getLink()) + "</a></div>"
+                                            + "<div style='margin-top:6px; display:flex; gap:12px;'>"
+                                            + "<a href='" + HtmlUtils.escape(r.getLink()) + "' style='font-size:12px; color:#0366d6;'>Open Article</a>"
+                                            + "<a href='detail://" + i + "' style='font-size:12px; color:#6c757d;'>Details</a>"
+                                            + "</div>"
                                             + "</div>");
                                 }
                             }
@@ -155,6 +190,155 @@ public class Option2Panel extends JPanel {
                 };
 
                 worker.execute();
+            }
+        });
+    }
+
+    private void previewFile() {
+        if (currentFile == null) return;
+        try {
+            String text = org.newsrec.reader.ReaderFactory.getReader(currentFile).read(currentFile);
+            JTextArea area = new JTextArea(text);
+            area.setEditable(false);
+            JScrollPane sp = new JScrollPane(area);
+            sp.setPreferredSize(new Dimension(600, 400));
+            JOptionPane.showMessageDialog(this, sp, "Preview: " + currentFile.getName(), JOptionPane.PLAIN_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Failed to read file: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void showArticleDetail(int index) {
+        if (lastResults == null || index < 0 || index >= lastResults.size()) return;
+        RecommendationResult r = lastResults.get(index);
+        String desc = r.getDescription();
+        if (desc == null || desc.isEmpty()) desc = "(no description available)";
+
+        JTextArea area = new JTextArea(desc);
+        area.setEditable(false);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        JScrollPane sp = new JScrollPane(area);
+        sp.setPreferredSize(new Dimension(500, 250));
+        sp.setBorder(BorderFactory.createTitledBorder("Article Preview"));
+
+        JPanel info = new JPanel(new GridLayout(0, 1, 5, 5));
+        info.add(new JLabel("<html><b>Title:</b> " + HtmlUtils.escape(r.getFileName()) + "</html>"));
+        info.add(new JLabel("<html><b>Source:</b> " + HtmlUtils.escape(r.getSource()) + "</html>"));
+        info.add(new JLabel("<html><b>Similarity:</b> " + String.format("%.4f", r.getSimilarity()) + "</html>"));
+
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.add(info, BorderLayout.NORTH);
+        panel.add(sp, BorderLayout.CENTER);
+
+        JOptionPane.showMessageDialog(this, panel, "Article Details", JOptionPane.PLAIN_MESSAGE);
+    }
+
+    private void compareArticles() {
+        if (lastArticles == null || lastArticles.size() < 2) {
+            JOptionPane.showMessageDialog(this, "Need at least 2 articles to compare.");
+            return;
+        }
+
+        progressBar.setVisible(true);
+        compareArticlesBtn.setEnabled(false);
+
+        SwingWorker<Void, Void> worker = new SwingWorker<>() {
+            @Override
+            protected Void doInBackground() {
+                List<String> corpus = new ArrayList<>();
+                for (RSSArticle a : lastArticles) {
+                    corpus.add(a.getTitle() + " " + a.getDescription());
+                }
+
+                TFIDFVectorizer vectorizer = new TFIDFVectorizer();
+                List<List<String>> tokenizedCorpus = new ArrayList<>();
+                for (String doc : corpus) {
+                    tokenizedCorpus.add(vectorizer.preprocess(doc));
+                }
+                List<Map<String, Double>> vectors = new ArrayList<>();
+                List<String> labels = new ArrayList<>();
+                Map<String, Double> idfMap = vectorizer.precomputeIDF(tokenizedCorpus);
+
+                for (int i = 0; i < lastArticles.size(); i++) {
+                    RSSArticle a = lastArticles.get(i);
+                    String text = a.getTitle() + " " + a.getDescription();
+                    vectors.add(vectorizer.normalize(vectorizer.buildVector(text, idfMap)));
+                    labels.add(a.getTitle());
+                }
+
+                SimilarityMatrix simMatrix = new SimilarityMatrix(vectors, labels);
+                List<Map.Entry<Double, String>> pairs = new ArrayList<>();
+
+                for (int i = 0; i < lastArticles.size(); i++) {
+                    for (int j = i + 1; j < lastArticles.size(); j++) {
+                        pairs.add(Map.entry(simMatrix.get(i, j), (i + 1) + ". " + labels.get(i) + "  ↔  " + (j + 1) + ". " + labels.get(j)));
+                    }
+                }
+
+                pairs.sort(Map.Entry.<Double, String>comparingByKey().reversed());
+                int showCount = Math.min(20, pairs.size());
+
+                StringBuilder html = new StringBuilder();
+                html.append("<html><body style='font-family:sans-serif; padding:8px;'>");
+                html.append("<h3>Article-to-Article Comparison (Top " + showCount + " pairs)</h3>");
+                html.append("<p><i>Shows which crawled articles are most similar to each other.</i></p>");
+
+                for (int k = 0; k < showCount; k++) {
+                    var pair = pairs.get(k);
+                    int pct = (int) Math.round(pair.getKey() * 100);
+                    String scoreColor = pair.getKey() >= 0.85 ? "#28a745" : pair.getKey() >= 0.50 ? "#ffc107" : "#dc3545";
+                    html.append("<div style='border:1px solid #ddd; border-radius:6px; padding:8px; margin:6px 0; background:#fff;'>"
+                            + "<div style='display:flex; align-items:center; gap:8px;'>"
+                            + "<span style='font-weight:bold; color:#666;'>" + (k + 1) + ".</span>"
+                            + "<span style='font-size:13px;'>" + HtmlUtils.escape(pair.getValue()) + "</span>"
+                            + "</div>"
+                            + "<div style='margin-top:6px;'>"
+                            + "<div style='background:#eee; border-radius:4px; width:160px; height:16px; overflow:hidden;'>"
+                            + "<div style='background:" + scoreColor + "; width:" + pct + "%; height:16px; border-radius:4px; text-align:center; color:white; font-size:10px; line-height:16px;'>" + pct + "%</div>"
+                            + "</div>"
+                            + "</div></div>");
+                }
+
+                html.append("</body></html>");
+
+                String finalHtml = html.toString();
+                SwingUtilities.invokeLater(() -> {
+                    results.setText(finalHtml);
+                    results.setCaretPosition(0);
+                });
+
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                progressBar.setVisible(false);
+                compareArticlesBtn.setEnabled(true);
+            }
+        };
+
+        worker.execute();
+    }
+
+    private void setupDragAndDrop() {
+        new DropTarget(this, new DropTargetAdapter() {
+            @Override
+            public void drop(DropTargetDropEvent e) {
+                e.acceptDrop(DnDConstants.ACTION_COPY);
+                try {
+                    List<File> files = (List<File>) e.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
+                    for (File f : files) {
+                        String name = f.getName().toLowerCase();
+                        if (!name.endsWith(".pdf") && !name.endsWith(".docx")) continue;
+                        currentFile = f;
+                        previewBtn.setEnabled(true);
+                        uploadBtn.getActionListeners()[0].actionPerformed(null);
+                        break;
+                    }
+                } catch (Exception ex) {
+                    logger.error("Drop failed", ex);
+                }
             }
         });
     }

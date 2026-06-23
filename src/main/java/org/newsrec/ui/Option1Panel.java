@@ -11,6 +11,8 @@ import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.dnd.*;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +36,7 @@ public class Option1Panel extends JPanel {
     private JButton removeCompareBtn;
     private JButton analyzeBtn;
     private JButton exportBtn;
+    private JButton previewBtn;
     private JSpinner topKSpinner;
     private List<RecommendationResult> lastResults;
 
@@ -52,11 +55,15 @@ public class Option1Panel extends JPanel {
         exportBtn = new JButton("Export CSV");
         exportBtn.setEnabled(false);
 
+        previewBtn = new JButton("Preview Base");
+        previewBtn.setEnabled(false);
+
         topKSpinner = new JSpinner(new SpinnerNumberModel(20, 1, 999, 1));
         ((JSpinner.DefaultEditor) topKSpinner.getEditor()).getTextField().setColumns(3);
 
         top.add(baseBtn);
         top.add(removeBaseBtn);
+        top.add(previewBtn);
         top.add(compareBtn);
         top.add(removeCompareBtn);
         top.add(new JLabel("Top-K:"));
@@ -74,7 +81,7 @@ public class Option1Panel extends JPanel {
 
         compareList = new JList<>(compareListModel);
         JPanel comparePanel = new JPanel(new BorderLayout());
-        comparePanel.setBorder(new TitledBorder("Compare Files"));
+        comparePanel.setBorder(new TitledBorder("Compare Files (drag & drop supported)"));
         comparePanel.add(new JScrollPane(compareList), BorderLayout.CENTER);
         centerPanel.add(comparePanel, BorderLayout.CENTER);
         add(centerPanel, BorderLayout.CENTER);
@@ -96,10 +103,13 @@ public class Option1Panel extends JPanel {
 
         baseBtn.addActionListener(e -> chooseBase());
         removeBaseBtn.addActionListener(e -> removeBase());
+        previewBtn.addActionListener(e -> previewBaseFile());
         compareBtn.addActionListener(e -> chooseFiles());
         removeCompareBtn.addActionListener(e -> removeSelectedCompare());
         analyzeBtn.addActionListener(e -> analyze());
         exportBtn.addActionListener(e -> exportCsv());
+
+        setupDragAndDrop();
     }
 
     private void exportCsv() {
@@ -120,6 +130,7 @@ public class Option1Panel extends JPanel {
             baseFile = chooser.getSelectedFile();
             baseFileLabel.setText(baseFile.getName());
             removeBaseBtn.setEnabled(true);
+            previewBtn.setEnabled(true);
         }
     }
 
@@ -127,7 +138,51 @@ public class Option1Panel extends JPanel {
         baseFile = null;
         baseFileLabel.setText("(none)");
         removeBaseBtn.setEnabled(false);
+        previewBtn.setEnabled(false);
         exportBtn.setEnabled(false);
+    }
+
+    private void previewBaseFile() {
+        if (baseFile == null) return;
+        try {
+            String text = org.newsrec.reader.ReaderFactory.getReader(baseFile).read(baseFile);
+            JTextArea area = new JTextArea(text);
+            area.setEditable(false);
+            JScrollPane sp = new JScrollPane(area);
+            sp.setPreferredSize(new Dimension(600, 400));
+            JOptionPane.showMessageDialog(this, sp, "Preview: " + baseFile.getName(), JOptionPane.PLAIN_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Failed to read file: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void setupDragAndDrop() {
+        DragSource.getDefaultDragSource();
+        new DropTarget(this, new DropTargetAdapter() {
+            @Override
+            public void drop(DropTargetDropEvent e) {
+                e.acceptDrop(DnDConstants.ACTION_COPY);
+                try {
+                    List<File> files = (List<File>) e.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
+                    for (File f : files) {
+                        String name = f.getName().toLowerCase();
+                        if (!name.endsWith(".pdf") && !name.endsWith(".docx")) continue;
+                        if (baseFile == null) {
+                            baseFile = f;
+                            baseFileLabel.setText(f.getName());
+                            removeBaseBtn.setEnabled(true);
+                            previewBtn.setEnabled(true);
+                        } else {
+                            compareFiles.add(f);
+                            compareListModel.addElement(f.getName());
+                        }
+                    }
+                    removeCompareBtn.setEnabled(!compareFiles.isEmpty());
+                } catch (Exception ex) {
+                    logger.error("Drop failed", ex);
+                }
+            }
+        });
     }
 
     private void chooseFiles() {

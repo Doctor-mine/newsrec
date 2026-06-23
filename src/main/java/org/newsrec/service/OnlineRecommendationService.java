@@ -14,10 +14,19 @@ import java.util.function.Consumer;
 public class OnlineRecommendationService {
 
     private static final Logger logger = LogManager.getLogger(OnlineRecommendationService.class);
+    private List<RSSArticle> lastArticles;
+    private String lastFileContent;
+    private Map<String, Double> lastIdfMap;
 
     public List<RecommendationResult> recommend(File uploadedFile, Consumer<String> progress) {
         return recommend(uploadedFile, progress, Integer.MAX_VALUE);
     }
+
+    public List<RSSArticle> getLastArticles() { return lastArticles; }
+
+    public String getLastFileContent() { return lastFileContent; }
+
+    public Map<String, Double> getLastIdfMap() { return lastIdfMap; }
 
     public List<RecommendationResult> recommend(File uploadedFile, Consumer<String> progress, int topK) {
         progress.accept("Reading file...\n");
@@ -40,6 +49,7 @@ public class OnlineRecommendationService {
 
         progress.accept("Fetching online articles...\n");
         List<RSSArticle> articles = new CrawlerManager().collectArticles(keywords, progress);
+        this.lastArticles = articles;
 
         if (articles.isEmpty()) {
             throw new RuntimeException(
@@ -64,6 +74,8 @@ public class OnlineRecommendationService {
         }
 
         Map<String, Double> idfMap = vectorizer.precomputeIDF(tokenizedCorpus);
+        this.lastFileContent = content;
+        this.lastIdfMap = idfMap;
         progress.accept("  - Vectorizing documents...\n");
 
         List<Map<String, Double>> allVectors = new ArrayList<>();
@@ -92,7 +104,7 @@ public class OnlineRecommendationService {
         for (Map.Entry<Integer, Double> entry : top) {
             int idx = entry.getKey();
             RSSArticle article = articles.get(idx - 1);
-            results.add(new RecommendationResult(article.getTitle(), article.getSource(), article.getLink(), entry.getValue()));
+            results.add(new RecommendationResult(article.getTitle(), "", entry.getValue(), article.getSource(), article.getLink(), article.getDescription()));
         }
 
         progress.accept("Done.\n");
