@@ -208,9 +208,10 @@ public class Option1Panel extends JPanel {
     private void displayResults(List<RecommendationResult> results) {
         resultsPanel.removeAll();
 
-        for (RecommendationResult r : results) {
+        for (int i = 0; i < results.size(); i++) {
+            RecommendationResult r = results.get(i);
             JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            row.add(new JLabel(r.getFileName()));
+            row.add(new JLabel((i + 1) + ". " + r.getFileName()));
             row.add(Box.createHorizontalStrut(20));
             row.add(new JLabel(String.format("Score: %.4f", r.getSimilarity())));
             row.add(Box.createHorizontalStrut(20));

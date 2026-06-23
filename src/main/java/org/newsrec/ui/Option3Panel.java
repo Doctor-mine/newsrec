@@ -78,8 +78,9 @@ public class Option3Panel extends JPanel {
                     if (articles.isEmpty()) {
                         html.append("<p>No articles found.</p>");
                     } else {
-                        for (RSSArticle article : articles) {
-                            html.append("<p><b>" + HtmlUtils.escape(article.getTitle()) + "</b><br>"
+                        for (int i = 0; i < articles.size(); i++) {
+                            RSSArticle article = articles.get(i);
+                            html.append("<p><b>" + (i + 1) + ". " + HtmlUtils.escape(article.getTitle()) + "</b><br>"
                                     + "<i>Source: " + HtmlUtils.escape(article.getSource()) + "</i><br>"
                                     + "<a href='" + HtmlUtils.escape(article.getLink()) + "'>"
                                     + HtmlUtils.escape(article.getLink()) + "</a></p><hr>");

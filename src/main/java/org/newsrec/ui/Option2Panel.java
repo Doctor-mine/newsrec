@@ -114,8 +114,9 @@ public class Option2Panel extends JPanel {
                                 html.append("<p>No recommendations found.</p>");
                             } else {
                                 html.append("<h3>Recommendations</h3>");
-                                for (RecommendationResult r : recommendations) {
-                                    html.append("<p><b>" + HtmlUtils.escape(r.getFileName()) + "</b><br>"
+                                for (int i = 0; i < recommendations.size(); i++) {
+                                    RecommendationResult r = recommendations.get(i);
+                                    html.append("<p><b>" + (i + 1) + ". " + HtmlUtils.escape(r.getFileName()) + "</b><br>"
                                             + "<i>Source: " + HtmlUtils.escape(r.getSource()) + "</i><br>"
                                             + "Score: " + String.format("%.4f", r.getSimilarity()) + "<br>"
                                             + "<a href='" + HtmlUtils.escape(r.getLink()) + "'>"

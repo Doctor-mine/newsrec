@@ -43,8 +43,15 @@ public class CrawlerManager {
             progress.accept("  - Fetching Wikipedia (" + keywords.size() + " keywords)...\n");
         }
 
+        progress.accept("  - Fetching Semantic Scholar (" + keywords.size() + " keywords)...\n");
+        CompletableFuture<Void> ssFuture = CompletableFuture.runAsync(() ->
+                articles.addAll(new SemanticScholarCrawler().search(keywords))
+        ).orTimeout(15, TimeUnit.SECONDS);
+
         CompletableFuture<Void> all = CompletableFuture.allOf(arxivFuture, sciDailyFuture);
-        CompletableFuture<Void> allWiki = CompletableFuture.allOf(wikiFutures.toArray(new CompletableFuture[0]));
+        CompletableFuture<Void> allWiki = CompletableFuture.allOf(
+                withStream(wikiFutures, ssFuture)
+        );
 
         try {
             all.get(20, TimeUnit.SECONDS);
@@ -55,10 +62,16 @@ public class CrawlerManager {
         try {
             allWiki.get(15, TimeUnit.SECONDS);
         } catch (Exception e) {
-            progress.accept("  - Wikipedia timed out.\n");
+            progress.accept("  - Wikipedia/Semantic Scholar timed out.\n");
         }
 
         progress.accept("  - Got " + articles.size() + " articles total.\n");
         return articles;
+    }
+
+    private CompletableFuture<Void>[] withStream(List<CompletableFuture<Void>> futures, CompletableFuture<Void> extra) {
+        List<CompletableFuture<Void>> all = new ArrayList<>(futures);
+        all.add(extra);
+        return all.toArray(new CompletableFuture[0]);
     }
 }
