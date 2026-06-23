@@ -168,9 +168,9 @@ public class Option2Panel extends JPanel {
                                             + "<span style='font-size:12px; color:#888;'>similarity</span>"
                                             + "<span style='font-size:11px; color:#aaa;'>(" + String.format("%.4f", r.getSimilarity()) + ")</span>"
                                             + "</div>"
-                                            + "<div style='margin-top:10px; display:flex; gap:16px;'>"
-                                            + "<a href='" + HtmlUtils.escape(r.getLink()) + "' style='font-size:12px; color:#0366d6;'>Open Article</a>"
-                                            + "<a href='base://" + i + "' style='font-size:12px; color:#e67e22;'>Use as base</a>"
+                                            + "<div style='margin-top:12px;'>"
+                                            + "<div style='padding-bottom:8px;'><a href='" + HtmlUtils.escape(r.getLink()) + "' style='font-size:12px; color:#0366d6;'>Open Article</a></div>"
+                                            + "<div><a href='base://" + i + "' style='font-size:12px; color:#e67e22;'>Use as base</a></div>"
                                             + "</div>"
                                             + "</div>");
                                 }

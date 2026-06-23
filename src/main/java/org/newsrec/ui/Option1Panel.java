@@ -81,7 +81,7 @@ public class Option1Panel extends JPanel {
 
         compareList = new JList<>(compareListModel);
         JPanel comparePanel = new JPanel(new BorderLayout());
-        comparePanel.setBorder(new TitledBorder("Compare Files (drag & drop supported)"));
+        comparePanel.setBorder(new TitledBorder("Compare Files"));
         comparePanel.add(new JScrollPane(compareList), BorderLayout.CENTER);
         centerPanel.add(comparePanel, BorderLayout.CENTER);
         add(centerPanel, BorderLayout.CENTER);
